@@ -9,10 +9,21 @@ export interface ModelProfile {
   standard: string;
 }
 
+/**
+ * q4f16 halves the weight footprint against q4f32 with no measurable quality
+ * difference on a 1B model, and a smaller download is the difference between a
+ * visitor waiting and a visitor leaving. 879 MB and 2.3 GB respectively.
+ */
 export const DEFAULT_MODELS: ModelProfile = {
-  compact: 'Llama-3.2-1B-Instruct-q4f32_1-MLC',
-  standard: 'Llama-3.2-3B-Instruct-q4f32_1-MLC',
+  compact: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+  standard: 'Llama-3.2-3B-Instruct-q4f16_1-MLC',
 };
+
+/**
+ * Smallest instruct model worth calling tools with, for hosts where even the
+ * compact tier is a hard sell. Weaker at multi-step JSON; fine for one call.
+ */
+export const TINY_MODEL = 'SmolLM2-360M-Instruct-q4f16_1-MLC';
 
 export interface WebLLMEngineOptions {
   /** Explicit MLC model id. Overrides `tier`. */

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.3 — 2026-11-22
+
+- Default tiers now use q4f16 weights: the compact model drops from 1,129 MB to
+  879 MB (Llama-3.2-1B-Instruct-q4f16_1-MLC) and the standard tier from 2,952 MB
+  to 2,264 MB, with no measurable quality change on a 1B model.
+- `TINY_MODEL` (SmolLM2-360M, 376 MB) is exported for hosts that need the
+  smallest possible install.
+
 ## 0.2.2 — 2026-11-22
 
 - `detectWebGPU()` asks the browser for an adapter before a host promises an
