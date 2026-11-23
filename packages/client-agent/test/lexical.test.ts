@@ -136,6 +136,32 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Sho is an engineering manager and IC at Conversica.');
   });
 
+  it('never echoes a clipped payload as the answer', async () => {
+    const clipped = '{"projects":[{"title":"Hobnob: private meeting notes, no cloud","stack":["Whisper (large-v3-turbo)","Local GGUF LLMs","Live captions","macOS (Apple Silicon)","Li…';
+    const reply = await engine.complete({
+      messages: [
+        { role: 'user', content: 'which projects has he built?' },
+        { role: 'user', content: `[client-agent] Query "projects.list" returned ${clipped}.` },
+      ],
+      tools: [],
+    });
+    expect(reply.text.startsWith('{')).toBe(false);
+    expect(reply.text).not.toContain('"projects"');
+    expect(reply.text).toContain('too large');
+  });
+
+  it('reads the structured observation when the runtime supplies one', async () => {
+    const reply = await engine.complete({
+      messages: [
+        { role: 'user', content: 'how many posts?' },
+        { role: 'user', content: '[client-agent] Query "blog.stats" returned {"posts":58…' },
+      ],
+      observations: { 'blog.stats': { answer: '58 posts are published.' } },
+      tools: [],
+    });
+    expect(reply.text).toBe('58 posts are published.');
+  });
+
   it('keeps a multi-sentence answer intact', async () => {
     const reply = await engine.complete(
       request('what is his current role?', [

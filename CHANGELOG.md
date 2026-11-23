@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.4 — 2026-11-23
+
+- No reply can be raw JSON. The keyword engine preferred the clipped transcript copy of a tool result,
+  failed to parse it, and echoed the payload at the visitor; it now reads the structured observation
+  the runtime supplies, and an unparseable payload becomes "I read that data, but it came back too
+  large to summarise" instead of a JSON dump.
+- 111 tests.
+
 ## 0.5.3 — 2026-11-23
 
 - `EngineRequest.observations` carries this turn's tool results structurally. The transcript copy is

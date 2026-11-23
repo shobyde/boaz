@@ -81,20 +81,31 @@ function inferArguments(
  * `text`) gets to phrase its own reply; anything else is summarised key by key,
  * which is readable for counts and ambiguous for prose.
  */
+const LOOKS_LIKE_DATA = /^\s*[\[{]/;
+
 function readAnswer(raw: string): string {
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (typeof parsed.answer === 'string') return parsed.answer;
-    if (typeof parsed.text === 'string') return parsed.text;
-    const summary = Object.entries(parsed)
-      .map(([key, value]) => `${key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} ${String(value)}`)
-      .join(', ');
-    if (!summary) return '';
-    return /[.!?]$/.test(summary) ? summary : `Right now: ${summary}.`;
+    parsed = JSON.parse(raw);
   } catch {
-    const text = raw.trim();
-    return /[.!?]$/.test(text) ? text : `${text}.`;
+    // Truncated or otherwise unreadable: say that, never echo the payload. A
+    // visitor asked a question, not for the wire format.
+    return LOOKS_LIKE_DATA.test(raw)
+      ? 'I read that data, but it came back too large to summarise. Try a narrower question.'
+      : '';
   }
+  if (parsed === null || typeof parsed !== 'object') return String(parsed);
+  const record = parsed as Record<string, unknown>;
+  if (typeof record.answer === 'string') return record.answer;
+  if (typeof record.text === 'string') return record.text;
+  if (Array.isArray(parsed)) {
+    return parsed.length === 0 ? 'Nothing came back for that.' : `That returned ${parsed.length} items.`;
+  }
+  const summary = Object.entries(record)
+    .map(([key, value]) => `${key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} ${String(value)}`)
+    .join(', ');
+  if (!summary) return '';
+  return /[.!?]$/.test(summary) ? summary : `Right now: ${summary}.`;
 }
 
 function callTool(id: string, args: Record<string, unknown>): string {
@@ -148,7 +159,15 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
           message.content.startsWith('[client-agent] Query "'),
         );
         if (queryMessage) {
-          const payload = /returned ([\s\S]*)\.$/.exec(queryMessage.content)?.[1] ?? '';
+          // The transcript copy is clipped for prompt budgets, so a large result
+          // arrives as truncated JSON. Prefer the structured observation the
+          // runtime passes alongside it, and never show raw JSON to a visitor.
+          const id = /^\[client-agent\] Query "([^"]+)"/.exec(queryMessage.content)?.[1];
+          const observed = id ? request.observations?.[id] : undefined;
+          const payload =
+            observed !== undefined
+              ? JSON.stringify(observed)
+              : /returned ([\s\S]*)\.$/.exec(queryMessage.content)?.[1] ?? '';
           const answer = readAnswer(payload);
           return { text: answer || 'I read that value.' };
         }
