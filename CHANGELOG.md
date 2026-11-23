@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.4 — 2026-11-22
+
+- `onStateChange(state, detail)` now carries the engine's own failure message, so
+  a host can show why an install stopped instead of a generic sentence. Worker
+  fetch failures keep their original text.
+
 ## 0.2.3 — 2026-11-22
 
 - Default tiers now use q4f16 weights: the compact model drops from 1,129 MB to

@@ -39,7 +39,8 @@ export interface WebLLMEngineOptions {
   maxTokens?: number;
   /** Streaming download progress: 0–1 plus the engine's own status line. */
   onProgress?: (report: { progress: number; text: string }) => void;
-  onStateChange?: (state: WebLLMState) => void;
+  /** State changes, with the underlying message when the engine fails. */
+  onStateChange?: (state: WebLLMState, detail?: { message?: string }) => void;
 }
 
 export type WebLLMState = 'idle' | 'loading' | 'ready' | 'error' | 'disposed';
@@ -98,9 +99,9 @@ export function createWebLLMEngine(options: WebLLMEngineOptions = {}): WebLLMEng
   let readyResolve: (() => void) | undefined;
   let readyReject: ((error: Error) => void) | undefined;
 
-  const setState = (next: WebLLMState) => {
+  const setState = (next: WebLLMState, detail?: { message?: string }) => {
     state = next;
-    options.onStateChange?.(next);
+    options.onStateChange?.(next, detail);
   };
 
   const ensureWorker = (): Worker => {
@@ -125,14 +126,16 @@ export function createWebLLMEngine(options: WebLLMEngineOptions = {}): WebLLMEng
           pending.delete(message.id);
           entry?.reject(new Error(message.message));
         } else {
-          setState('error');
+          // A worker-level failure is usually a fetch that never completed
+          // (offline, blocked CDN, quota). Keep the engine's own words.
+          setState('error', { message: message.message });
           readyReject?.(new Error(message.message));
         }
       }
     };
     worker.onerror = (event) => {
       const error = new Error(event.message || 'webllm worker failed');
-      setState('error');
+      setState('error', { message: error.message });
       readyReject?.(error);
       for (const entry of pending.values()) entry.reject(error);
       pending = new Map();
