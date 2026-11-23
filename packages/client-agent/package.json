@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
   "type": "module",
   "license": "MIT",

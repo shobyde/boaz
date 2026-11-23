@@ -27,3 +27,13 @@ export const filterInvoices = defineCapability({
     return { appliedFilter: status };
   },
 });
+
+export const openArchive = defineCapability({
+  id: 'blog.open_archive',
+  kind: 'action',
+  title: 'Open the archive',
+  description: 'Opens the archive page with every post, the topic filters, and the publication calendar.',
+  keywords: ['archive', 'all posts'],
+  route: '/archive',
+  handler: async () => ({ opened: '/archive/' }),
+});

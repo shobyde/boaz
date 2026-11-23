@@ -121,7 +121,7 @@ Every code is stable and documented, so CI output is citable:
 | `CAP004` | error | Malformed `paramsSchema` structure |
 | `CAP005` | warning | Schema keyword the runtime cannot enforce (`$ref`, `format`) |
 | `CAP006` | error | Declaration is not statically evaluable, so no manifest entry |
-| `CAP007` | warning | Mutating action without `requiresConfirmation` |
+| `CAP007` | warning | Mutating action without `requiresConfirmation` (id or title names the mutation, and the title does not open with a read-only verb) |
 | `CAP008` | warning | Router path with no route capability (heuristic) |
 | `CAP009` | error | Invalid id or kind |
 | `CAP010` | warning | Two capabilities claim the same route |
@@ -193,6 +193,6 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.1.1`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Not yet published to npm.
+`0.1.2`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Not yet published to npm.
 
 MIT.

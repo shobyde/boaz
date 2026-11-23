@@ -113,6 +113,7 @@ describe('extractCapabilities on the fixture corpus', () => {
       'account.navigate',
       'billing.filter_invoices',
       'billing.navigate',
+      'blog.open_archive',
       'home.navigate',
     ]);
     const filter = manifest.capabilities.find((c) => c.id === 'billing.filter_invoices');

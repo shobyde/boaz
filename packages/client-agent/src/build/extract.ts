@@ -48,6 +48,7 @@ export interface ExtractResult {
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
 const KINDS = new Set<CapabilityKind>(['route', 'action', 'query']);
+const READ_ONLY_VERB = /^(open|show|view|read|go|scroll|copy|print|download|expand|export|list|see|find|search|filter|sort)\b/i;
 const MUTATING =
   /\b(delete|remove|cancel|pay|purchase|subscribe|unsubscribe|upgrade|downgrade|update|save|clear|reset|archive|revoke|disconnect|transfer|deactivate|close)\b/i;
 const DEFAULT_INCLUDE = ['src/**/*.{ts,tsx,js,jsx,mts,mjs}'];
@@ -273,8 +274,12 @@ function validateMetadata(
     }
   }
   if (kind === 'action' && capability.requiresConfirmation !== true) {
-    const text = `${id} ${title} ${description}`;
-    if (MUTATING.test(text)) {
+    // A leading read-only verb means the action opens, shows, or produces
+    // something. "Open the printable resume" mentions saving a PDF; that is
+    // not a reason to demand a confirmation.
+    const headline = `${id} ${title}`;
+    const opensSomething = READ_ONLY_VERB.test(title.trim());
+    if (!opensSomething && MUTATING.test(headline)) {
       diagnostic({
         code: 'CAP007',
         severity: 'warning',

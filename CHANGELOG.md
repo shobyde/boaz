@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-11-22
+
+- `CAP007` stops flagging actions whose title opens with a read-only verb
+  ("Open the archive", "Export the report") just because the description
+  mentions saving or archiving. It now matches the mutating word against the
+  id and title only, and skips titles that open, show, read, copy, print,
+  download, expand, export, list, find, search, filter or sort.
+
 ## 0.1.1 — 2026-11-22
 
 - Route capabilities may now point at a hash (`#projects`) as well as a path
