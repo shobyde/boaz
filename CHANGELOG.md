@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.0 — 2026-11-22
+
+- **Grounding:** `AgentRuntimeOptions.readContext(query)` supplies page content,
+  docs, or a transcript for the turn; `buildSystemPrompt` carries it under a
+  separate token budget (`contextBudgetTokens`, default 700) and tells the model
+  to offer to navigate when the answer lives in a section.
+- **`client-agent/dom`:** `createDomContextReader({ sections })` turns visible
+  sections into labelled, budgeted text, ranked by the visitor's words. Reads
+  `innerText` in a browser and walks the tree where it does not exist.
+- **Declarative surfaces:** a handler may return `{ surface: [...] }`; the loop
+  emits a `surface` step and hands the messages to the host, which owns the
+  catalog and the renderer. The runtime never interprets the component tree.
+- 67 tests.
+
 ## 0.1.5 — 2026-11-22
 
 - After an action runs, the keyword engine answers with the capability's title

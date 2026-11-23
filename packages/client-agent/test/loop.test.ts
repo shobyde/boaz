@@ -156,6 +156,49 @@ describe('AgentRuntime', () => {
     expect(result.steps.some((step) => step.type === 'action')).toBe(true);
   });
 
+  it('hands a declarative surface to the host instead of executing it', async () => {
+    const registry = new CapabilityRegistry();
+    const surface = [
+      {
+        version: '1.0',
+        createSurface: {
+          surfaceId: 'project',
+          catalogId: 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json',
+          components: [{ id: 'root', component: 'Column', children: ['t'] }, { id: 't', component: 'Text', text: 'Hobnob' }],
+        },
+      },
+    ];
+    registry.register(
+      defineCapability({
+        id: 'projects.card',
+        kind: 'action',
+        title: 'Show a project card',
+        description: 'Shows a card for one project with its summary and links.',
+        handler: async () => ({ surface }),
+      }),
+    );
+
+    const { runtime } = setup({
+      capabilities: [
+        {
+          id: 'projects.card',
+          kind: 'action',
+          title: 'Show a project card',
+          description: 'Shows a card for one project with its summary and links.',
+        },
+      ],
+      registry,
+      route: '#projects',
+      outputs: [tool('projects.card'), 'Here is the card.'],
+    });
+
+    const result = await runtime.send('tell me about hobnob');
+    const step = result.steps.find((entry) => entry.type === 'surface');
+    expect(step).toMatchObject({ type: 'surface', capabilityId: 'projects.card' });
+    if (step?.type === 'surface') expect(step.messages).toEqual(surface);
+    expect(result.text).toBe('Here is the card.');
+  });
+
   it('caps sequential tool calls instead of looping', async () => {
     const registry = new CapabilityRegistry();
     registry.register(

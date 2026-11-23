@@ -30,6 +30,7 @@ npm install https://github.com/shobyde/client-agent/releases/download/v0.1.5/cli
 | `client-agent/vite` | AST scanner for `defineCapability()` that emits `agent-manifest.json` and serves it as a virtual module |
 | `client-agent/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
 | `client-agent/webllm` | WebGPU worker bridge with download progress and cache reuse |
+| `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text for grounding a model in real content |
 | `client-agent/cli` | `verify`, `manifest`, `codes`, `init --skill`, and a self-check corpus runner |
 
 One package, five entry points. `react`, `vite` and `@mlc-ai/web-llm` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
@@ -97,6 +98,44 @@ import { createLexicalEngine } from 'client-agent/core';
 ```
 
 Handlers register on mount, so an action declared for another screen is not callable until that screen exists. The runtime handles that: it navigates to `capability.route`, waits up to 2s for the handler, then runs it. `useRegisterCapability(capability)` inside a page component is the whole integration.
+
+## Grounding the model in the page
+
+Capability metadata says what the app can do. It does not say what the page says. Pass
+`readContext` and the runtime carries that text into the prompt on every turn, under its own budget:
+
+```js
+import { createDomContextReader } from 'client-agent/dom';
+
+const readContext = createDomContextReader({
+  sections: [
+    { selector: '#about', label: 'About' },
+    { selector: '#projects', label: 'Projects' },
+    { selector: '#experience', label: 'Experience' },
+  ],
+  maxChars: 2600,
+});
+
+new AgentRuntime({ engine, capabilities, registry, getSnapshot, readContext /* ... */ });
+```
+
+Sections are ranked by the visitor's words, so a question about experience keeps that text and drops the
+blog when the budget is tight. In the prompt the model is told to answer from that content and to offer
+to take the visitor to the section when seeing it would help.
+
+## Answers that are UI
+
+A handler can return a declarative surface instead of a sentence. The loop does not interpret it: it
+emits a `surface` step and the host renders it with its own components.
+
+```ts
+handler: async ({ project }) => ({ surface: projectCard(project) })
+```
+
+A2UI 1.0 streams (`createSurface` / `updateComponents` / `updateDataModel`) are one shape that fits; a
+host can use its own. shobyde.com renders A2UI components with native elements, so the agent names
+components and the page keeps its design system, and `groundglass` checks every surface the assistant
+can emit in CI.
 
 ## No React? The core is framework-free
 

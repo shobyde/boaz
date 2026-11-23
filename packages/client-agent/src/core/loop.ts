@@ -14,6 +14,13 @@ import { formatSchemaErrors, validateParams } from './schema.js';
 
 const MAX_CORRECTIONS = 2;
 
+/** A handler can return `{ surface: [...] }` to render UI instead of prose. */
+function surfaceOf(result: unknown): unknown[] | undefined {
+  if (result === null || typeof result !== 'object') return undefined;
+  const messages = (result as { surface?: unknown }).surface;
+  return Array.isArray(messages) && messages.length > 0 ? messages : undefined;
+}
+
 function clip(value: unknown, max = 600): string {
   let text: string;
   try {
@@ -110,11 +117,25 @@ export class AgentRuntime {
     }
     this.emit({ type: 'retrieval', ids: selected.map((c) => c.id) });
 
+    let context: string | undefined;
+    if (this.options.readContext) {
+      try {
+        context = await this.options.readContext(userText);
+      } catch (error) {
+        // Grounding is optional: a broken selector must not cost the turn.
+        this.emit({ type: 'context-error', message: error instanceof Error ? error.message : String(error) });
+      }
+    }
+
     const systemPrompt = buildSystemPrompt({
       capabilities: selected,
       snapshot: firstSnapshot,
       budgetTokens: this.options.promptBudgetTokens,
       instructions: this.options.instructions,
+      ...(context ? { context } : {}),
+      ...(this.options.contextBudgetTokens !== undefined
+        ? { contextBudgetTokens: this.options.contextBudgetTokens }
+        : {}),
     });
 
     const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
@@ -262,6 +283,23 @@ export class AgentRuntime {
       const ctx = this.makeContext();
       try {
         const result = await live.handler(args, ctx);
+
+        // The handler may answer with a declarative surface (A2UI or any other
+        // component stream). The runtime does not interpret it: it hands the
+        // messages to the host, which owns the catalog and the renderer.
+        const surface = surfaceOf(result);
+        if (surface) {
+          push({ type: 'surface', capabilityId: capability.id, messages: surface });
+          messages.push(
+            { role: 'assistant', content: completion.text },
+            {
+              role: 'user',
+              content: `[client-agent] "${capability.id}" rendered a surface. Describe it in one sentence if the visitor still needs words.`,
+            },
+          );
+          continue;
+        }
+
         if (capability.kind === 'query') {
           push({ type: 'query', capabilityId: capability.id, args, result });
           messages.push(

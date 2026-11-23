@@ -26,6 +26,10 @@ export interface PromptInput {
   /** Token budget for the capability list itself. Default 1500. */
   budgetTokens?: number;
   instructions?: string;
+  /** Grounding text for this turn: page content, docs, a transcript. */
+  context?: string;
+  /** Token budget for that text. Default 700. */
+  contextBudgetTokens?: number;
 }
 
 /**
@@ -63,6 +67,19 @@ export function buildSystemPrompt(input: PromptInput): string {
     '- Answer in at most two sentences. Never claim an action happened unless a tool result says it did.',
   );
   if (input.instructions) header.push('', input.instructions);
+
+  if (input.context && input.context.trim()) {
+    const limit = (input.contextBudgetTokens ?? 700) * 4;
+    const raw = input.context.trim();
+    const body = raw.length > limit ? `${raw.slice(0, limit).trimEnd()}\n[content truncated]` : raw;
+    header.push(
+      '',
+      'Page content, for answering questions about this site:',
+      body,
+      '',
+      'Use the page content to explain things. When the visitor would be better off seeing a section, say so and offer to take them there.',
+    );
+  }
 
   const lines = capabilities.map((capability) => {
     const route = capability.route ? ` [${capability.route}]` : '';

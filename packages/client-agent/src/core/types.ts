@@ -113,6 +113,7 @@ export type TurnStep =
   | { type: 'navigate'; capabilityId: string; route: string }
   | { type: 'action'; capabilityId: string; args: Record<string, unknown>; result: unknown }
   | { type: 'query'; capabilityId: string; args: Record<string, unknown>; result: unknown }
+  | { type: 'surface'; capabilityId: string; messages: unknown[] }
   | { type: 'confirmation'; capabilityId: string; approved: boolean }
   | {
       type: 'validation-error';
@@ -152,5 +153,13 @@ export interface AgentRuntimeOptions {
   promptBudgetTokens?: number;
   /** Extra system instructions appended after the generated policy. */
   instructions?: string;
+  /**
+   * Returns extra grounding text for one turn: page content, retrieved docs, a
+   * transcript. Called with the visitor's message so the host can pick what is
+   * relevant; failures are ignored rather than breaking the turn.
+   */
+  readContext?: (query: string) => string | Promise<string>;
+  /** Token budget for that grounding text. Default 700. */
+  contextBudgetTokens?: number;
   onEvent?: (event: AgentEvent) => void;
 }
