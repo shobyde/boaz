@@ -183,6 +183,13 @@ export class KnowledgeBase {
     return this.vocabulary.get(token.toLowerCase()) ?? [];
   }
 
+  /** Every declared row, in declaration order. */
+  facts(): FactRow[] {
+    const rows: FactRow[] = [];
+    for (const [rel, values] of this.rels) for (const args of values) rows.push([rel, ...args]);
+    return rows;
+  }
+
   /** Every constant the caller has declared, in declaration order. */
   constants(): string[] {
     const all: string[] = [];

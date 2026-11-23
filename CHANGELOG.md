@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.5.0 — 2026-11-23
+
+Grounding, conversation memory and tool reasoning: the three things that made the deterministic
+engine feel narrow.
+
+- **`client-agent/extract`**: `createFieldScanner()` reads email / LinkedIn / URL / phone out of text
+  the host already has, with a sentence of evidence. `requestedFields(query)` decides when a question
+  is asking for one. This is the fallback for values nobody declared.
+- **Grounding in the rules engine**: `grounding.read(query)` supplies page text; matched fields
+  arrive as `field(<kind>, <value>)` assumptions, so a rule can prefer declared facts and fall back
+  to what the page says (`email(?V) :- field(email, ?V).`).
+- **Conversation memory**: a follow-up inherits the previous intent and terms ("which projects use
+  python?" then "and SQLite?"), a bare "and?" repeats the last rule with its assumptions, and a
+  follow-up that names a different field switches rules instead of dragging the old one along.
+- **Tool reasoning**: an answer rule can declare `steps: [{ capabilityId, toFacts }]`. The engine
+  emits the capability call, reads the result out of the turn, converts it to facts with `toFacts`,
+  and runs the goal over declared facts + live data. One call per turn, in order, with the plan in
+  the app and the loop in the library.
+- Terms are resolved after the tools have run, so a vocabulary that only exists in a tool result
+  can still match the visitor's words.
+- 106 tests.
+
 ## 0.4.4 — 2026-11-23
 
 - Answer rules can declare `explain(context)`, one plain-language line describing what the rule did
