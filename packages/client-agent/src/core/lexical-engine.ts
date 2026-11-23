@@ -83,6 +83,36 @@ function inferArguments(
  */
 const LOOKS_LIKE_DATA = /^\s*[\[{]/;
 
+/**
+ * Turns one value into words. Arrays of records are named by their title/name,
+ * because "projects [object Object]" is what happens when they are not.
+ */
+function summarizeValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) return 'nothing';
+    const names = value
+      .map((item) =>
+        item && typeof item === 'object'
+          ? ((item as Record<string, unknown>).title ??
+            (item as Record<string, unknown>).name ??
+            (item as Record<string, unknown>).id ??
+            null)
+          : item,
+      )
+      .filter((name): name is string | number => typeof name === 'string' || typeof name === 'number');
+    if (names.length === 0) return `${value.length} items`;
+    const short = names.slice(0, 3).map(String).join(', ');
+    return value.length > 3 ? `${value.length} items (${short}…)` : short;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return 'nothing';
+    if (entries.length > 3) return `${entries.length} fields`;
+    return entries.map(([key, item]) => `${key}: ${String(item)}`).join(', ');
+  }
+  return String(value);
+}
+
 function readAnswer(raw: string): string {
   let parsed: unknown;
   try {
@@ -102,7 +132,7 @@ function readAnswer(raw: string): string {
     return parsed.length === 0 ? 'Nothing came back for that.' : `That returned ${parsed.length} items.`;
   }
   const summary = Object.entries(record)
-    .map(([key, value]) => `${key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} ${String(value)}`)
+    .map(([key, value]) => `${key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} ${summarizeValue(value)}`)
     .join(', ');
   if (!summary) return '';
   return /[.!?]$/.test(summary) ? summary : `Right now: ${summary}.`;

@@ -267,6 +267,41 @@ describe('tool reasoning', () => {
     expect(completion.steps?.[0]).toMatchObject({ type: 'error', message: expect.stringContaining('slugOf') });
   });
 
+  it('tells the app which word the data did not have', async () => {
+    const engine = createRulesEngine({
+      knowledge: new KnowledgeBase({ rules: ['projects_using(?P) :- uses(?P, ?T), asked(?T).'] }),
+      answers: [
+        {
+          id: 'projects.using',
+          title: 'Which projects use a technology',
+          keywords: ['which projects use'],
+          goal: 'projects_using(?P)',
+          steps: [
+            {
+              capabilityId: 'projects.list',
+              toFacts: (result: unknown) =>
+                ((result as typeof listResult).projects ?? []).flatMap((project) => [
+                  fact('project', project.title, project.title),
+                  ...project.stack.map((tech) => fact('uses', project.title, tech)),
+                ]),
+            },
+          ],
+          compose: ({ solutions, terms, mentions }) =>
+            solutions.length
+              ? 'matched'
+              : `No project stack lists ${terms[0] ?? mentions[0] ?? 'that'}.`,
+        },
+      ],
+      capabilities: [],
+    });
+    const completion = await engine.complete({
+      messages: [{ role: 'user', content: 'which projects use TypeScript?' }],
+      tools: [],
+      observations: { 'projects.list': listResult },
+    });
+    expect(completion.text).toBe('No project stack lists typescript.');
+  });
+
   it('does not call the tool again when the result is already in the turn', async () => {
     const engine = reasonedEngine();
     const completion = await engine.complete({

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.6 — 2026-11-23
+
+- A query result summarized as a sentence names its records: an array of objects is described by its
+  `title`/`name`/`id` ("3 items (Hobnob, Readback, Groundglass…)"), so "projects [object Object]" can
+  no longer reach a visitor.
+- Answer context gains `mentions`: the surface words the question used that no fact or rule metadata
+  accounted for. That is what lets a rule say "No project stack lists TypeScript" instead of falling
+  through to the keyword engine when the data genuinely does not have the thing.
+- 114 tests.
+
 ## 0.5.5 — 2026-11-23
 
 - A `toFacts` adapter that throws is no longer swallowed. The failure becomes an `error` step in the

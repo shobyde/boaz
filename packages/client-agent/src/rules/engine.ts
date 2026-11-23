@@ -57,6 +57,11 @@ export interface AnswerContext {
   knowledge: KnowledgeBase;
   /** Constants the question mentioned, as declared in the facts. */
   terms: string[];
+  /**
+   * Words the question used that no fact or rule metadata accounted for. This
+   * is how a rule answers "the data does not have that" instead of going quiet.
+   */
+  mentions: string[];
   /** Fields the question named and the page scan found, e.g. an email address. */
   hits: ScanHit[];
   /** Tool results this rule read, keyed by capability id. */
@@ -195,6 +200,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
     assume: FactRow[],
     observed: Record<string, unknown> = {},
     kb: KnowledgeBase = knowledge,
+    mentions: string[] = [],
   ): EngineCompletion | null => {
     const solutions = kb.query(rule.goal, { assume });
     const context: AnswerContext = {
@@ -203,6 +209,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       solutions,
       knowledge: kb,
       terms,
+      mentions,
       hits,
       observed,
       lookup: (goal) => kb.query(goal, { assume }),
@@ -343,7 +350,28 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       ];
 
       if (matched) {
-        const completion = runRule(matched, query, effectiveTerms, effectiveHits, assume, Object.fromEntries(observed), turnKnowledge);
+        const ruleWords = new Set(tokenize([matched.title, ...(matched.keywords ?? [])].join(' ')));
+        const resolved = new Set(effectiveTerms.flatMap((term) => tokenize(term)));
+        // Surface words, not stems: an app writing "no stack lists TypeScript"
+        // cannot use "type" because the stemmer ate the rest of the word.
+        const mentions = [
+          ...new Set(
+            query
+              .toLowerCase()
+              .split(/[^a-z0-9+#.]+/)
+              .filter((word) => word.length > 1),
+          ),
+        ].filter((word) => {
+          const [stem] = tokenize(word);
+          if (!stem) return false;
+          return (
+            !ruleWords.has(stem) &&
+            !resolved.has(stem) &&
+            !ELLIPSIS_WORDS.has(stem) &&
+            !ELLIPSIS_WORDS.has(word)
+          );
+        });
+        const completion = runRule(matched, query, effectiveTerms, effectiveHits, assume, Object.fromEntries(observed), turnKnowledge, mentions);
         if (completion) {
           if (factErrors.length) {
             completion.steps = [

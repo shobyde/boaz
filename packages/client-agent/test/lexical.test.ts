@@ -136,6 +136,19 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Sho is an engineering manager and IC at Conversica.');
   });
 
+  it('names records instead of printing [object Object]', async () => {
+    const payload = { projects: [{ title: 'Hobnob' }, { title: 'Readback' }, { title: 'Groundglass' }] };
+    const reply = await engine.complete({
+      messages: [
+        { role: 'user', content: 'list projects' },
+        { role: 'user', content: `[client-agent] Query "projects.list" returned ${JSON.stringify(payload)}.` },
+      ],
+      tools: [],
+    });
+    expect(reply.text).not.toContain('[object Object]');
+    expect(reply.text).toContain('Hobnob');
+  });
+
   it('never echoes a clipped payload as the answer', async () => {
     const clipped = '{"projects":[{"title":"Hobnob: private meeting notes, no cloud","stack":["Whisper (large-v3-turbo)","Local GGUF LLMs","Live captions","macOS (Apple Silicon)","Li…';
     const reply = await engine.complete({
