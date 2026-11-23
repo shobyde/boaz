@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.5 — 2026-11-23
+
+- A `toFacts` adapter that throws is no longer swallowed. The failure becomes an `error` step in the
+  completion, so a broken adapter shows up in the trace instead of silently degrading every answer to
+  keyword matching. A missing helper survived a whole deploy that way.
+- 112 tests.
+
 ## 0.5.4 — 2026-11-23
 
 - No reply can be raw JSON. The keyword engine preferred the clipped transcript copy of a tool result,

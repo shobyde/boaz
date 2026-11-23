@@ -295,6 +295,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       // values win: the transcript copy is clipped for prompt budgets.
       const observed = observationsThisTurn(request);
       for (const [id, value] of Object.entries(request.observations ?? {})) observed.set(id, value);
+      const factErrors: string[] = [];
       const stepFacts: FactRow[] = [];
       if (matched?.steps?.length) {
         for (const step of matched.steps) {
@@ -305,8 +306,12 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         for (const step of matched.steps) {
           try {
             stepFacts.push(...step.toFacts(observed.get(step.capabilityId)));
-          } catch {
-            // A malformed result is a missing fact, not a crash.
+          } catch (error) {
+            // A broken adapter must not crash the turn, but it must not vanish
+            // either: silent fact failures once hid an undefined helper for a
+            // whole deploy.
+            const message = error instanceof Error ? error.message : String(error);
+            factErrors.push(`${step.capabilityId} facts failed: ${message}`);
           }
         }
       }
@@ -339,7 +344,15 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
 
       if (matched) {
         const completion = runRule(matched, query, effectiveTerms, effectiveHits, assume, Object.fromEntries(observed), turnKnowledge);
-        if (completion) return completion;
+        if (completion) {
+          if (factErrors.length) {
+            completion.steps = [
+              ...factErrors.map((message) => ({ type: 'error' as const, message, capabilityId: matched.id })),
+              ...(completion.steps ?? []),
+            ];
+          }
+          return completion;
+        }
       }
 
       // A bare continuation ("and?", "more") with no retrieval signal of its own

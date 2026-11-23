@@ -237,6 +237,36 @@ describe('tool reasoning', () => {
     expect(second.steps?.[0]).toMatchObject({ label: 'Read the project list and found 2' });
   });
 
+  it('surfaces a broken fact adapter instead of hiding it', async () => {
+    const engine = createRulesEngine({
+      knowledge: new KnowledgeBase({ rules: ['project(?P, ?T).'] }),
+      answers: [
+        {
+          id: 'projects.broken',
+          title: 'List the projects',
+          keywords: ['list projects'],
+          goal: 'project(?P, ?T)',
+          steps: [
+            {
+              capabilityId: 'projects.list',
+              toFacts: () => {
+                throw new Error('slugOf is not defined');
+              },
+            },
+          ],
+          compose: ({ solutions }) => (solutions.length ? 'ok' : 'No project data.'),
+        },
+      ],
+      capabilities: [],
+    });
+    const completion = await engine.complete({
+      messages: [{ role: 'user', content: 'list projects' }],
+      tools: [],
+      observations: { 'projects.list': { projects: [] } },
+    });
+    expect(completion.steps?.[0]).toMatchObject({ type: 'error', message: expect.stringContaining('slugOf') });
+  });
+
   it('does not call the tool again when the result is already in the turn', async () => {
     const engine = reasonedEngine();
     const completion = await engine.complete({
