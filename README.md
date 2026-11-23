@@ -193,6 +193,6 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.1.0`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Not yet published to npm.
+`0.1.1`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Not yet published to npm.
 
 MIT.

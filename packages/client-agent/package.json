@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
   "type": "module",
   "license": "MIT",
@@ -65,7 +65,8 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prepare": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "typescript": "^5.9.0"

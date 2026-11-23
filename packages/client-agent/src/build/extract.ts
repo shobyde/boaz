@@ -268,8 +268,8 @@ function validateMetadata(
   }
   if (kind === 'route') {
     const route = capability.route;
-    if (typeof route !== 'string' || !route.startsWith('/')) {
-      diagnostic({ code: 'CAP003', severity: 'error', message: 'route capability needs a route starting with "/"', ...at });
+    if (typeof route !== 'string' || !/^[/#]/.test(route)) {
+      diagnostic({ code: 'CAP003', severity: 'error', message: 'route capability needs a path starting with "/" or a hash like "#projects"', ...at });
     }
   }
   if (kind === 'action' && capability.requiresConfirmation !== true) {

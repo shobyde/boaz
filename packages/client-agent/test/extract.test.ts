@@ -69,6 +69,16 @@ describe('scanSource', () => {
     expect(scanned.capabilities[0]?.id).toBe('a.b');
   });
 
+  it('accepts hash routes, which single-page sites need', () => {
+    const scanned = scanSource(
+      `import { defineCapability } from 'client-agent/core';
+       export const c = defineCapability({ id: 'site.projects', kind: 'route', title: 'Projects', description: 'Takes the visitor to the projects section of the page.', route: '#projects' });`,
+      'src/a.js',
+    );
+    expect(scanned.diagnostics).toEqual([]);
+    expect(scanned.capabilities[0]?.route).toBe('#projects');
+  });
+
   it('reports declarations that cannot be read statically', () => {
     const scanned = scanSource(
       `import { defineCapability } from 'client-agent/core';

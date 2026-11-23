@@ -48,8 +48,12 @@ export function defineCapability<TParams = Record<string, unknown>, TResult = un
   if (declaration.kind !== 'route' && typeof declaration.handler !== 'function') {
     problems.push(`kind "${declaration.kind}" requires a handler function`);
   }
-  if (declaration.kind === 'route' && declaration.route && !declaration.route.startsWith('/')) {
-    problems.push(`route "${declaration.route}" must start with "/"`);
+  if (
+    declaration.kind === 'route' &&
+    declaration.route &&
+    !/^[/#]/.test(declaration.route)
+  ) {
+    problems.push(`route "${declaration.route}" must start with "/" or "#"`);
   }
 
   if (problems.length > 0) {

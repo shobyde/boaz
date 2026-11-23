@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 — 2026-11-22
+
+- Route capabilities may now point at a hash (`#projects`) as well as a path
+  (`/settings/billing`), so single-page sites and anchor navigation can be
+  declared without inventing a router.
+- `prepare` script builds `dist` on install from a git URL, so the package can
+  be consumed before it is on npm.
+
 ## 0.1.0 — 2026-11-22
 
 First cut of the package and the demo.
