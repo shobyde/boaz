@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0 — 2026-11-23
+
+Breaking: the model adapters are gone.
+
+- **Removed** `client-agent/webllm`, `client-agent/webllm/worker`, `client-agent/chrome-ai`, the
+  `@mlc-ai/web-llm` peer dependency and the demo worker. No download, no WebGPU requirement, no
+  Prompt API. A visitor gets an answer on any browser.
+- **New `client-agent/rules`**: `KnowledgeBase` holds facts and Datalog rules
+  (`head(?X) :- body(?X, ?Y), asked(?Y)`), evaluates them with scoped per-query assumptions, a
+  depth limit and deduped solutions.
+- **`createRulesEngine()`** picks an answer rule by BM25 over its title and keywords, runs the goal,
+  composes the reply through the app's `compose` callback, and returns an `inference` step carrying
+  the goal, the matched terms, the solutions and the rule text. It falls through to keyword matching
+  when no rule applies or `compose` declines.
+- **Streaming**: `AgentRuntime` takes `streaming: { chunkChars, paceMs }` and emits `delta` events
+  before the `turn` event. The reply is already computed; this is pacing, not inference.
+- `EngineCompletion` may now carry `steps`, so any engine can report what it did.
+- 86 tests, including rule joins, recursive rules, scoped assumptions, and delta ordering.
+
 ## 0.3.6 — 2026-11-23
 
 - Static metadata may be wrapped with string concatenation (`'a ' + 'b'`).

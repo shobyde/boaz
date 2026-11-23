@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import manifest from 'client-agent:manifest';
-import { createLexicalEngine, type ManifestCapability } from 'client-agent/core';
-import { createWebLLMEngine, isWebGPUAvailable } from 'client-agent/webllm';
+import { type ManifestCapability } from 'client-agent/core';
+import { KnowledgeBase, createRulesEngine, fact } from 'client-agent/rules';
 import { AgentProvider } from 'client-agent/react';
 import { Layout } from './shell/Layout.js';
 import { Assistant } from './shell/Assistant.js';
@@ -16,34 +16,38 @@ import { invoices, team } from './data.js';
 
 const capabilities = manifest.capabilities as ManifestCapability[];
 
+// The demo's knowledge base: invoice rows plus one rule, so a question about a
+// status is answered from data instead of a paragraph of prose.
+const knowledge = new KnowledgeBase({
+  facts: invoices.map((invoice) =>
+    fact('invoice', invoice.id, invoice.customer, invoice.status, String(invoice.amount)),
+  ),
+  rules: ['invoices_with(?I, ?C, ?S, ?A) :- invoice(?I, ?C, ?S, ?A), asked(?S).'],
+});
+
+const answers = [
+  {
+    id: 'invoices.by_status',
+    title: 'Which invoices have a status',
+    keywords: ['overdue invoices', 'unpaid', 'paid invoices', 'open invoices', 'which invoices'],
+    goal: 'invoices_with(?I, ?C, ?S, ?A)',
+    compose: ({ solutions }: { solutions: { bindings: Record<string, string> }[] }) => {
+      if (solutions.length === 0) return '';
+      const rows = solutions.map(
+        (solution) =>
+          `${solution.bindings['?I']} (${solution.bindings['?C']}, $${Number(solution.bindings['?A']).toLocaleString('en-US')})`,
+      );
+      return `${rows.length} invoice${rows.length === 1 ? '' : 's'}: ${rows.join(', ')}.`;
+    },
+  },
+];
+
 export function App() {
   const store = useDemo();
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<'lexical' | 'local'>('lexical');
-  const [progress, setProgress] = useState<{ progress: number; text: string } | null>(null);
-  const [engineNote, setEngineNote] = useState<string | null>(null);
-  const [canUseLocalModel] = useState(() => isWebGPUAvailable());
-
-  const engine = useMemo(() => {
-    if (mode === 'lexical') {
-      return createLexicalEngine({ capabilities });
-    }
-    // The bundler recognises this exact shape and compiles a worker chunk.
-    const worker = new Worker(new URL('./agent.worker.ts', import.meta.url), { type: 'module' });
-    return createWebLLMEngine({
-      tier: 'compact',
-      worker,
-      onProgress: setProgress,
-      onStateChange: (state) => {
-        if (state === 'error') {
-          setEngineNote('The on-device model failed to load, so keyword search is still answering.');
-          setMode('lexical');
-        }
-      },
-    });
-  }, [mode]);
+  const engine = useMemo(() => createRulesEngine({ knowledge, answers, capabilities }), []);
 
   const getSnapshot = useCallback(
     () => ({
@@ -119,24 +123,7 @@ export function App() {
       <Assistant
         open={open}
         onClose={() => setOpen((value) => !value)}
-        engineLabel={mode === 'local' ? 'On-device · WebGPU' : 'Keyword search · no download'}
-        usingLocalModel={mode === 'local'}
-        canUseLocalModel={canUseLocalModel}
-        onToggleEngine={() => {
-          if (mode === 'local') {
-            setMode('lexical');
-            setEngineNote(null);
-            return;
-          }
-          if (!canUseLocalModel) {
-            setEngineNote('This browser does not expose WebGPU, so keyword search is the only engine here.');
-            return;
-          }
-          setEngineNote('Downloading a ~1.2 GB quantized model. It is cached after the first load.');
-          setMode('local');
-        }}
-        progress={progress}
-        engineNote={engineNote}
+        engineLabel="Rules + keyword search · no download"
         capabilityCount={capabilities.length}
         capabilities={capabilities}
       />

@@ -1,7 +1,7 @@
 {
   "name": "client-agent",
-  "version": "0.3.6",
-  "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
+  "version": "0.4.0",
+  "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",
   "author": "sho byde <shobyde@gmail.com>",
@@ -11,14 +11,14 @@
     "url": "git+https://github.com/shobyde/client-agent.git"
   },
   "keywords": [
-    "webllm",
-    "webgpu",
-    "llm",
     "agent",
     "tool-calling",
-    "react-router",
-    "vite-plugin",
-    "client-side"
+    "client-side",
+    "in-browser",
+    "knowledge-base",
+    "datalog",
+    "rules",
+    "retrieval"
   ],
   "exports": {
     ".": {
@@ -37,14 +37,6 @@
       "types": "./dist/vite/index.d.ts",
       "import": "./dist/vite/index.js"
     },
-    "./webllm": {
-      "types": "./dist/webllm/index.d.ts",
-      "import": "./dist/webllm/index.js"
-    },
-    "./webllm/worker": {
-      "types": "./dist/webllm/worker.d.ts",
-      "import": "./dist/webllm/worker.js"
-    },
     "./build": {
       "types": "./dist/build/index.d.ts",
       "import": "./dist/build/index.js"
@@ -54,9 +46,9 @@
       "types": "./dist/dom/index.d.ts",
       "import": "./dist/dom/index.js"
     },
-    "./chrome-ai": {
-      "types": "./dist/chrome-ai/index.d.ts",
-      "import": "./dist/chrome-ai/index.js"
+    "./rules": {
+      "types": "./dist/rules/index.d.ts",
+      "import": "./dist/rules/index.js"
     }
   },
   "bin": {
@@ -67,9 +59,7 @@
     "README.md",
     "LICENSE"
   ],
-  "sideEffects": [
-    "./dist/webllm/worker.js"
-  ],
+  "sideEffects": false,
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -80,14 +70,10 @@
     "typescript": "^5.9.0"
   },
   "peerDependencies": {
-    "@mlc-ai/web-llm": "^0.2.89",
     "react": ">=18",
     "vite": ">=5"
   },
   "peerDependenciesMeta": {
-    "@mlc-ai/web-llm": {
-      "optional": true
-    },
     "react": {
       "optional": true
     },

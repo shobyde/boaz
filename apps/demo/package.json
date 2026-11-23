@@ -10,7 +10,6 @@
     "preview": "vite preview --port 4173"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.89",
     "client-agent": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

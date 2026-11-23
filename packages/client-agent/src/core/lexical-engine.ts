@@ -101,7 +101,7 @@ function callTool(id: string, args: Record<string, unknown>): string {
 /**
  * Deterministic engine that answers from the capability index.
  *
- * It is the no-WebGPU fallback and the reference implementation of the tool
+ * It is the no-model fallback and the reference implementation of the tool
  * protocol: same messages in, same JSON out, no download and no GPU. When the
  * request is unambiguous it navigates or calls the action; when it is not, it
  * asks instead of guessing.

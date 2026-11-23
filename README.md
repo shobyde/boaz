@@ -1,14 +1,15 @@
 # client-agent
 
-**Ground a browser assistant in your app's real routes and actions, run the model in the tab, and let it click for the user — without a server or an inference bill.**
+**Ground a browser assistant in your app's real routes, actions and data — with no model to download, no API key, and every sentence traceable to a fact.**
 
 ![The Ledger demo: an invoice table filtered by the assistant, with the transcript showing the call it made](docs/media/billing-filter.png)
 
 Most "AI in your app" implementations stream the DOM to a server, pay per token, and hand a language model a bag of selectors. This package takes the opposite position:
 
 - **The app publishes a contract, not a DOM dump.** Co-located `defineCapability()` declarations are extracted at build time into a small JSON manifest. The assistant knows exactly which screens and operations exist because the build said so.
-- **The model runs in the tab.** WebLLM on WebGPU inside a worker, cached after the first load. No API key, no per-token cost, no prompts leaving the device.
+- **The app declares facts, the library does the reasoning.** `KnowledgeBase` holds rows plus Datalog-style rules; `createRulesEngine()` joins them against the question, then composes a sentence from the result. No weights, no GPU, no network.
 - **Every call is checked before it runs.** Ids must exist in the manifest, arguments must satisfy the JSON Schema, mutating actions pass a confirmation gate, and a turn is capped at three sequential calls.
+- **Replies can stream, with provenance.** `streaming: { chunkChars, paceMs }` emits `delta` events on the same channel as tool steps, and a rule answer carries the goal, the terms it matched and the rule it applied.
 
 ```bash
 npm install client-agent          # once the npm release runs; until then use the tarball below
@@ -19,22 +20,21 @@ Until the npm token is in place, every version is also attached to its GitHub re
 installs directly and which ships a prebuilt `dist/`:
 
 ```bash
-npm install https://github.com/shobyde/client-agent/releases/download/v0.1.5/client-agent-0.1.5.tgz
+npm install https://github.com/shobyde/client-agent/releases/download/v0.4.0/client-agent-0.4.0.tgz
 ```
 
 ## The pieces
 
 | Subpath | What it is |
 | --- | --- |
-| `client-agent/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic fallback engine |
-| `client-agent/vite` | AST scanner for `defineCapability()` that emits `agent-manifest.json` and serves it as a virtual module |
+| `client-agent/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic keyword engine |
+| `client-agent/rules` | `KnowledgeBase` (facts + Datalog rules), `createRulesEngine()`, and the answer-rule contract that turns solutions into replies |
+| `client-agent/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
 | `client-agent/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
-| `client-agent/webllm` | WebGPU worker bridge with download progress and cache reuse |
-| `client-agent/chrome-ai` | Adapter for the browser's own on-device model (Chrome Prompt API), no download from your host |
-| `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text for grounding a model in real content |
+| `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
 | `client-agent/cli` | `verify`, `manifest`, `codes`, `init --skill`, and a self-check corpus runner |
 
-One package, five entry points. `react`, `vite` and `@mlc-ai/web-llm` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
+One package, six entry points. `react` and `vite` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
 
 ## Declaring a capability
 
@@ -65,7 +65,61 @@ export const filterInvoices = defineCapability({
 });
 ```
 
-`kind: 'route'` is a destination the assistant can explain and navigate to. `kind: 'action'` is a state change with a handler. `kind: 'query'` is read-only state the model may inspect before deciding (open invoice count, active filters).
+`kind: 'route'` is a destination the assistant can explain and navigate to. `kind: 'action'` is a state change with a handler. `kind: 'query'` is read-only state, and can return `{ answer }` to phrase its own reply. `kind: 'knowledge'` (see `defineKnowledge()`) is prose the assistant may quote verbatim.
+
+## Facts and rules
+
+Prose answers "what is this page about". Rows and rules answer "which ones".
+
+```ts
+import { KnowledgeBase, createRulesEngine, fact } from 'client-agent/rules';
+
+const knowledge = new KnowledgeBase({
+  facts: [
+    ...invoices.map((invoice) =>
+      fact('invoice', invoice.id, invoice.customer, invoice.status, String(invoice.amount))),
+  ],
+  // The library injects `asked(<term>)` for every declared constant the visitor
+  // names, so a rule can talk about the question without seeing raw text.
+  rules: ['invoices_with(?I, ?C, ?S, ?A) :- invoice(?I, ?C, ?S, ?A), asked(?S).'],
+});
+
+const engine = createRulesEngine({
+  knowledge,
+  answers: [
+    {
+      id: 'invoices.by_status',
+      title: 'Which invoices have a status',
+      keywords: ['overdue invoices', 'unpaid', 'paid invoices', 'open invoices'],
+      goal: 'invoices_with(?I, ?C, ?S, ?A)',
+      compose: ({ solutions }) => {
+        if (solutions.length === 0) return '';
+        const rows = solutions.map(
+          (s) => `${s.bindings['?I']} (${s.bindings['?C']}, $${Number(s.bindings['?A']).toLocaleString('en-US')})`,
+        );
+        return `${solutions.length} invoice${solutions.length === 1 ? '' : 's'}: ${rows.join(', ')}.`;
+      },
+    },
+  ],
+});
+```
+
+The engine picks an answer rule with BM25 over its title and keywords, runs the goal against the
+knowledge base (with the question's terms as assumptions), and calls `compose` with the solutions.
+When no rule matches, or `compose` returns an empty string, it hands the turn to the keyword engine,
+which navigates and calls actions from the manifest.
+
+Answers come back with the reasoning attached:
+
+```ts
+const { text, steps } = await runtime.send('which invoices are overdue?');
+// text: "3 invoices: INV-2039 (Meridian Health, $9,600), INV-2037 (Ardent Freight, $3,120), INV-2032 (Vesper Audio, $560)."
+// steps: [{ type: 'inference', goal: 'invoices_with(?I, ?C, ?S, ?A)', terms: ['overdue'],
+//           solutions: [...], rule: 'invoices_with(?I, ?C, ?S, ?A) :- invoice(?I, ?C, ?S, ?A), asked(?S)' }]
+```
+
+That step is what makes the reply auditable: the sentence came from those rows, and you can show
+which ones. A model cannot make that claim.
 
 ## Wiring it up
 
@@ -76,7 +130,6 @@ import react from '@vitejs/plugin-react';
 import { clientAgent } from 'client-agent/vite';
 
 export default defineConfig({
-  worker: { format: 'es' }, // WebLLM splits its own chunks
   plugins: [react(), clientAgent({ include: ['src/**/*.{ts,tsx}'] })],
 });
 ```
@@ -85,14 +138,15 @@ export default defineConfig({
 // app.tsx
 import manifest from 'client-agent:manifest';
 import { AgentProvider } from 'client-agent/react';
-import { createLexicalEngine } from 'client-agent/core';
+import { createRulesEngine } from 'client-agent/rules';
 
 <AgentProvider
-  engine={createLexicalEngine({ capabilities: manifest.capabilities })}
+  engine={createRulesEngine({ knowledge, answers, capabilities: manifest.capabilities })}
   capabilities={manifest.capabilities}
   getSnapshot={() => ({ currentRoute: location.pathname, state: { openInvoices: 3 } })}
   navigate={(route) => router.navigate(route)}
   dispatch={(event, payload) => store.handle(event, payload)}
+  streaming={{ chunkChars: 16, paceMs: 18 }}
 >
   <App />
 </AgentProvider>
@@ -100,10 +154,27 @@ import { createLexicalEngine } from 'client-agent/core';
 
 Handlers register on mount, so an action declared for another screen is not callable until that screen exists. The runtime handles that: it navigates to `capability.route`, waits up to 2s for the handler, then runs it. `useRegisterCapability(capability)` inside a page component is the whole integration.
 
-## Grounding the model in the page
+## Streaming
 
-Capability metadata says what the app can do. It does not say what the page says. Pass
-`readContext` and the runtime carries that text into the prompt on every turn, under its own budget:
+`streaming` reveals the reply as `delta` events instead of one block. The text is already known when
+the first delta fires, so this is pacing, not inference: a host that wants instant text leaves it off,
+and a host that shows a transcript gets the same event shape it uses for tool steps.
+
+```
+step    inference   overdue(?I, ?C, ?A)   terms: [overdue]   0ms
+delta   "3 overdue: "
+delta   "INV-2039 (Meridian Health), "
+...
+turn    text = "3 overdue: INV-2039 (...)."
+```
+
+For a deterministic engine the honest thing to stream is the reasoning, not a fake progress bar:
+the trace is real and it arrives in about a millisecond.
+
+## Grounding (only when you bring your own engine)
+
+Capability metadata says what the app can do. It does not say what the page says. If you plug in a
+hosted model, pass `readContext` and the runtime carries page text into the prompt under its own budget:
 
 ```js
 import { createDomContextReader } from 'client-agent/dom';
@@ -121,8 +192,7 @@ new AgentRuntime({ engine, capabilities, registry, getSnapshot, readContext /* .
 ```
 
 Sections are ranked by the visitor's words, so a question about experience keeps that text and drops the
-blog when the budget is tight. In the prompt the model is told to answer from that content and to offer
-to take the visitor to the section when seeing it would help.
+blog when the budget is tight. The default engines ignore `readContext` entirely.
 
 ## Answers that are UI
 
@@ -146,14 +216,15 @@ renders its own panel.
 
 ```js
 import manifest from 'client-agent:manifest';
-import { AgentRuntime, createLexicalEngine, registry } from 'client-agent/core';
+import { AgentRuntime, registry } from 'client-agent/core';
+import { createRulesEngine } from 'client-agent/rules';
 import { siteCapabilities } from './capabilities.js';
 
 for (const capability of siteCapabilities) registry.register(capability);
 
 const runtime = new AgentRuntime({
-  engine: createLexicalEngine({ capabilities: manifest.capabilities }),
-  capabilities: manifest.capabilities,   // what the model may choose from
+  engine: createRulesEngine({ knowledge, answers, capabilities: manifest.capabilities }),
+  capabilities: manifest.capabilities,   // what the assistant may choose from
   registry,                              // what can actually run
   getSnapshot: () => ({ currentRoute: location.hash || '#hero' }),
   navigate: (route) => document.querySelector(route)?.scrollIntoView(),
@@ -163,8 +234,7 @@ const runtime = new AgentRuntime({
 const { text, steps } = await runtime.send('open the printable resume');
 ```
 
-Hash routes are supported for anchor navigation (`route: '#projects'`), and a `query` capability
-can return `{ answer }` to phrase its own reply when the keyword engine is doing the talking.
+Hash routes are supported for anchor navigation (`route: '#projects'`).
 
 ## What `verify` actually prints
 
@@ -205,55 +275,26 @@ Every code is stable and documented, so CI output is citable:
 
 ## The safety model
 
-Allowing a language model to call functions in a live app is the risky part, so the boundaries are structural rather than prompted:
+Letting a program act in a live app is the risky part, so the boundaries are structural rather than prompted:
 
 1. **Allowlisted registry.** No `eval`, no selector clicking, no generated code. The loop matches a parsed id against the manifest and calls the handler registered for it, or nothing.
-2. **Schema validation with one retry.** Arguments are validated against `paramsSchema`. A failure is replayed to the model verbatim (`arguments.status must be one of "paid", "open", "overdue" (enum)`) with one chance to correct, then surfaced as a polite message. Small local models recover from this far more often than from a generic "invalid request".
-3. **Confirmation gate.** `requiresConfirmation: true` pauses the turn, emits the request to the UI, and only calls the handler on an explicit approve. Cancel ends the turn with "Cancelled. Nothing was changed." Confirmation is for side effects, not for filtering the table.
-4. **Step cap.** At most 3 sequential tool calls per message (`maxToolCalls`), so a confused 1B model cannot loop.
+2. **Schema validation with one retry.** Arguments are validated against `paramsSchema`. A failure is replayed verbatim (`arguments.status must be one of "paid", "open", "overdue" (enum)`) with one chance to correct.
+3. **Confirmation gate.** `requiresConfirmation: true` pauses the turn, emits the request to the UI, and only calls the handler on an explicit approve. Cancel ends the turn with "Cancelled. Nothing was changed."
+4. **Step cap.** At most 3 sequential tool calls per message (`maxToolCalls`), so a confused engine cannot loop.
+5. **Bounded inference.** Rules are evaluated to a depth limit with deduped solutions, and a rule can only derive facts from rows the app declared.
 
-The model never sees a URL it can invent, a selector it can guess, or a function it can name. It selects from a list the build produced.
+## Engines
 
-## Engines: WebGPU, then keywords, then yours
+- **`createRulesEngine()`** — BM25 over your answer rules, Datalog over your facts, `compose` for the sentence. Handles `asked()` assumptions, returns an `inference` step, and falls through to keyword matching when nothing matches.
+- **`createLexicalEngine()`** — deterministic BM25 over the manifest. It navigates, calls actions when every required argument is unambiguous from the visitor's words (enum value present, email present), and asks otherwise.
+- **`AgentEngine`** — a six-line interface (`id` + `complete(messages, tools)`). Wrap your own endpoint, a hosted model, or a test double; nothing in the loop assumes where the text came from.
 
-- **`createWebLLMEngine()`** — WebGPU worker, ~1.2 GB compact tier / ~2.4 GB standard, progress events, cached by the engine after first load. Nothing downloads until the chat is opened.
-- **`createLexicalEngine()`** — deterministic BM25 over the manifest. It navigates, calls actions when every required argument is unambiguous from the visitor's words (enum value present, email present), and asks otherwise. No download, no GPU, testable in CI. This is what the screenshots above run on.
-- **`AgentEngine`** — a six-line interface (`id` + `complete(messages, tools)`). Wrap your own endpoint, a hosted model, or a test double.
-- **`chrome-ai`** — Chrome's own on-device model through the Prompt API. Nothing is fetched, because the browser already has it.
+### Why there is no bundled model
 
-### Getting the weights onto the browser
-
-WebLLM's documented unit is a **model record**: two URLs and an id.
-
-```ts
-{ model: '<dir with mlc-chat-config.json + shards>',
-  model_id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-  model_lib: '<compiled .wasm for that model>' }
-```
-
-The prebuilt records point `model` at `huggingface.co` and `model_lib` at
-`raw.githubusercontent.com`. Passing your own `appConfig` is the documented way
-to serve either from somewhere else — which is what `modelBase` and
-`modelLibBase` do here, without discarding the entry's VRAM hints or overrides:
-
-```ts
-const engine = createWebLLMEngine({
-  tier: 'compact',
-  modelBase: 'https://shobyde.com/models',   // serves /models/<model_id>/…
-  modelLibBase: 'https://shobyde.com/libs',  // serves the .wasm files
-  cacheBackend: 'cache',                     // or 'indexeddb'
-});
-```
-
-To self-host, copy the MLC model directory (config, `tensor-cache.json`, weight
-shards) to `<modelBase>/<model_id>/resolve/main/` — WebLLM appends
-`resolve/main/` to whatever `model` you give it, so mirroring that layout is
-what makes the files resolve. Keep the file names, and allow cross-origin reads
-if the host differs from the page. The browser caches the shards after the first load,
-so a second visit is free. If either host is unreachable, the worker says which
-one instead of stalling at 0%.
-
-Retrieval keeps the prompt under ~1,500 tokens: top-8 capabilities by BM25 over title/keywords/description, boosted for the current route, with one line per capability.
+Earlier versions shipped WebLLM and Chrome's Prompt API adapters. They are gone in 0.4.0: a
+multi-hundred-megabyte download, a GPU requirement and a browser-specific API are three good reasons
+for a visitor not to get an answer, and none of them buy a reply that is verifiable. The rules engine
+answers the questions an app can actually answer from its own data, and says so plainly when it cannot.
 
 ## The demo
 
@@ -263,7 +304,7 @@ pnpm build
 pnpm --filter demo dev        # http://localhost:5173
 ```
 
-It is a small invoices app ("Ledger") with five routes and twelve capabilities. Nothing about the assistant is hard-coded to those pages: the manifest is generated from the declarations beside the pages, and the same handlers back the buttons.
+It is a small invoices app ("Ledger") with five routes and twelve capabilities. Nothing about the assistant is hard-coded to those pages: the manifest is generated from the declarations beside the pages, and the same handlers back the buttons. The demo's knowledge base is its invoice rows plus one rule, so "which invoices are overdue" is answered from data.
 
 ![The assistant, docked, after filtering the invoice table](docs/media/dashboard.png)
 
@@ -273,14 +314,13 @@ It is a small invoices app ("Ledger") with five routes and twelve capabilities. 
 
 Verified on this machine:
 
-- `pnpm test` — 57 tests across schema validation, BM25 ranking, prompt budgeting, output parsing, the tool loop (navigation, late handler registration, schema retry, confirmation approve/cancel, step cap), the AST extractor, and the lexical engine.
+- `pnpm test` — 86 tests across schema validation, BM25 ranking, prompt budgeting, output parsing, the tool loop (navigation, late handler registration, schema retry, confirmation approve/cancel, step cap), the AST extractor, the keyword engine, the knowledge base (joins, recursive rules, scoped assumptions, dedupe) and streamed deltas.
 - `client-agent verify --self-check fixtures/selfcheck` — 9/9 fixtures produce exactly the diagnostic codes they declare, including the clean fixture producing none.
-- The demo in headless Chromium: "show only the overdue invoices" navigates from `/` to `/settings/billing` and filters the table to three overdue rows; "delete this workspace" raises the confirmation card; Cancel leaves state untouched; Confirm fires the action and shows the deletion banner.
+- The demo in headless Chromium: "show only the overdue invoices" navigates from `/` to `/settings/billing` and filters the table to three overdue rows; "delete this workspace" raises the confirmation card; Cancel leaves state untouched.
 
 Not verified here:
 
-- **WebGPU inference on real hardware.** This machine has no WebGPU-capable browser, so the worker path is typed, built, and wired (the demo emits its worker chunk) but no token has been generated through it here. Treat model quality and latency as unmeasured.
-- Browser support beyond Chromium for the demo, and Safari/Firefox WebGPU behaviour.
+- Rule quality beyond the demo: the tests cover the engine, not whether your rules are the right ones. `inference` steps are the tool for that review.
 - Token counts are `chars / 4` estimates; the budget is approximate by design.
 - `CAP008` route detection is a heuristic over React Router JSX and `path:` literals. File-based routers (Next `app/`, Remix) are not scanned yet.
 
@@ -288,12 +328,12 @@ Not verified here:
 
 ```
 packages/client-agent/src/
-  core/    types, define, registry, schema, retriever, prompt, tools, loop, lexical engine
+  core/    types, define, registry, schema, retriever, prompt, tools, loop, keyword engine
+  rules/   knowledge base (facts, rules, unification), rules engine, answer contract
   build/   AST extractor, glob matcher, diagnostic codes, terminal report
   vite/    plugin: scan, emit manifest, virtual module, dev watcher
   cli/     verify / manifest / codes / init / self-check + the shipped skill
   react/   provider, useAgentChat, useRegisterCapability
-  webllm/  worker, engine bridge, auto engine
 apps/demo/          the Ledger app used in the screenshots
 fixtures/selfcheck/ nine fixtures, each declaring the codes it must provoke
 docs/media/         stills captured from the running demo
@@ -301,6 +341,9 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.2.2`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Publishing is wired in `.github/workflows/release.yml` and runs on a tag once an `NPM_TOKEN` secret exists; until then the release tarball is the install path. It is already running in production on shobyde.com.
+`0.4.0`. 0.4.0 is a breaking release: the `webllm` and `chrome-ai` entry points, their peer
+dependency, and the demo's worker are removed. Publishing is wired in `.github/workflows/release.yml`,
+which packs the tarball, attaches it to the GitHub release, and publishes to npm once an `NPM_TOKEN`
+secret exists. It is running in production on shobyde.com.
 
 MIT.

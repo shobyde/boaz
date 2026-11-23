@@ -7,11 +7,6 @@ export interface AssistantProps {
   open: boolean;
   onClose: () => void;
   engineLabel: string;
-  usingLocalModel: boolean;
-  canUseLocalModel: boolean;
-  onToggleEngine: () => void;
-  progress: { progress: number; text: string } | null;
-  engineNote: string | null;
   capabilityCount: number;
   capabilities: ManifestCapability[];
 }
@@ -32,6 +27,8 @@ function trace(step: TurnStep): string | null {
       return `✓ ${step.capabilityId} ${JSON.stringify(step.args)}`;
     case 'query':
       return `◦ ${step.capabilityId} → ${JSON.stringify(step.result)}`;
+    case 'inference':
+      return `∴ ${step.rule ?? step.goal}`;
     case 'confirmation':
       return step.approved ? '✓ you confirmed' : '✕ you cancelled';
     case 'validation-error':
@@ -83,29 +80,6 @@ export function Assistant(props: AssistantProps) {
           ✕
         </button>
       </header>
-
-      <div className="engine-row">
-        <button
-          type="button"
-          className={props.usingLocalModel ? 'toggle on' : 'toggle'}
-          onClick={props.onToggleEngine}
-          disabled={!props.canUseLocalModel && !props.usingLocalModel}
-          title={
-            props.canUseLocalModel
-              ? 'Run a quantized model on this device with WebGPU'
-              : 'This browser does not expose WebGPU'
-          }
-        >
-          <span className="toggle-dot" />
-          Run on-device (WebGPU)
-        </button>
-        {props.progress && props.progress.progress < 0.999 && (
-          <div className="progress" aria-label="Model download progress">
-            <span style={{ width: `${Math.round(props.progress.progress * 100)}%` }} />
-          </div>
-        )}
-      </div>
-      {props.engineNote && <p className="engine-note">{props.engineNote}</p>}
 
       <div className="messages" ref={scroller}>
         {messages.length === 0 && (

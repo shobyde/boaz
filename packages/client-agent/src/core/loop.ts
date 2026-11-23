@@ -147,6 +147,7 @@ export class AgentRuntime {
     let toolCalls = 0;
     let corrections = 0;
     let finalText: string | undefined;
+    let textStepped = false;
     let stoppedBy: TurnResult['stoppedBy'] = 'final';
 
     const correct = (message: string) => {
@@ -159,11 +160,16 @@ export class AgentRuntime {
         messages,
         tools: buildToolSpecs(selected),
       });
+      for (const step of completion.steps ?? []) push(step);
       const parsed = parseModelOutput(completion.text);
 
       if (parsed.kind === 'text') {
         finalText = parsed.text || undefined;
-        if (finalText) push({ type: 'text', text: finalText });
+        if (finalText) {
+          await this.streamText(finalText);
+          push({ type: 'text', text: finalText });
+          textStepped = true;
+        }
         break;
       }
 
@@ -333,13 +339,31 @@ export class AgentRuntime {
     if (!finalText) {
       finalText = this.summarize(steps, stoppedBy);
     }
-    if (finalText) push({ type: 'text', text: finalText });
+    if (finalText && !textStepped) {
+      await this.streamText(finalText);
+      push({ type: 'text', text: finalText });
+    }
 
     this.history.push({ role: 'user', content: userText });
     this.history.push({ role: 'assistant', content: finalText });
     this.emit({ type: 'turn', text: finalText, steps });
 
     return { text: finalText, steps, stoppedBy };
+  }
+
+  /**
+   * Reveals the finished reply as deltas. The reply is already computed, so this
+   * is pacing, not inference: hosts that want instant text leave streaming off.
+   */
+  private async streamText(text: string): Promise<void> {
+    const streaming = this.options.streaming;
+    if (!streaming) return;
+    const chunkChars = Math.max(4, streaming.chunkChars ?? 16);
+    const paceMs = streaming.paceMs ?? 0;
+    for (const chunk of chunkForDisplay(text, chunkChars)) {
+      this.emit({ type: 'delta', text: chunk });
+      if (paceMs > 0) await new Promise((resolve) => setTimeout(resolve, paceMs));
+    }
   }
 
   private summarize(steps: TurnStep[], stoppedBy: TurnResult['stoppedBy']): string {
@@ -358,4 +382,24 @@ export class AgentRuntime {
     }
     return "I couldn't complete that. Nothing was changed.";
   }
+}
+
+/**
+ * Splits a finished reply into display chunks on word boundaries, so a streamed
+ * delta never cuts a word in half.
+ */
+export function chunkForDisplay(text: string, chunkChars: number): string[] {
+  const chunks: string[] = [];
+  let current = '';
+  for (const piece of text.split(/(\s+)/)) {
+    if (!piece) continue;
+    if (current.length > 0 && current.length + piece.length > chunkChars) {
+      chunks.push(current);
+      current = piece;
+    } else {
+      current += piece;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
 }

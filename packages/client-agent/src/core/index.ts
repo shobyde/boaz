@@ -16,6 +16,6 @@ export { buildSystemPrompt, buildToolSpecs, estimateTokens } from './prompt.js';
 export type { PromptInput } from './prompt.js';
 export { parseModelOutput, parseNativeToolCall } from './tools.js';
 export type { ParsedModelOutput } from './tools.js';
-export { AgentRuntime } from './loop.js';
+export { AgentRuntime, chunkForDisplay } from './loop.js';
 export { createLexicalEngine } from './lexical-engine.js';
 export type { LexicalEngineOptions } from './lexical-engine.js';

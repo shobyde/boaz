@@ -95,9 +95,14 @@ export interface EngineRequest {
 
 export interface EngineCompletion {
   text: string;
+  /**
+   * Steps the engine already took (a rule it applied, a fact set it read).
+   * The runtime emits them before the text so a host can show provenance.
+   */
+  steps?: TurnStep[];
 }
 
-/** Anything that can turn messages into text: WebLLM, a remote adapter, a fake in tests. */
+/** Anything that can turn messages into text: the rules engine, keyword search, a fake in tests. */
 export interface AgentEngine {
   readonly id: string;
   complete(request: EngineRequest): Promise<EngineCompletion>;
@@ -112,6 +117,14 @@ export interface ConfirmationRequest {
 
 export type TurnStep =
   | { type: 'text'; text: string }
+  | {
+      type: 'inference';
+      capabilityId: string;
+      goal: string;
+      terms: string[];
+      solutions: Record<string, string>[];
+      rule?: string;
+    }
   | { type: 'navigate'; capabilityId: string; route: string }
   | { type: 'action'; capabilityId: string; args: Record<string, unknown>; result: unknown }
   | { type: 'query'; capabilityId: string; args: Record<string, unknown>; result: unknown }
@@ -163,5 +176,11 @@ export interface AgentRuntimeOptions {
   readContext?: (query: string) => string | Promise<string>;
   /** Token budget for that grounding text. Default 700. */
   contextBudgetTokens?: number;
+  /**
+   * Reveal the reply as `delta` events instead of one block. Pacing is
+   * presentation only: the text is already known when the first delta fires.
+   * Off by default.
+   */
+  streaming?: false | { chunkChars?: number; paceMs?: number };
   onEvent?: (event: AgentEvent) => void;
 }
