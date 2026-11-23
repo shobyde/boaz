@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildModelRecord, configUrl, DEFAULT_WEIGHT_BASE } from '../src/webllm/records.js';
+import { buildModelRecord, cleanModelUrl, configUrl, DEFAULT_WEIGHT_BASE } from '../src/webllm/records.js';
 
 const modelId = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
 
@@ -53,8 +53,21 @@ describe('buildModelRecord', () => {
     expect(record.model_lib).toBe('');
   });
 
-  it('names the config file the weight directory must expose', () => {
+  it('resolves the config file the way WebLLM does, through /resolve/main/', () => {
     const record = buildModelRecord(prebuilt, modelId, { modelBase: 'https://x.test/models/' });
-    expect(configUrl(record)).toBe(`https://x.test/models/${modelId}/mlc-chat-config.json`);
+    expect(configUrl(record)).toBe(
+      `https://x.test/models/${modelId}/resolve/main/mlc-chat-config.json`,
+    );
+  });
+
+  it('keeps an explicit /resolve/<branch>/ in the URL', () => {
+    expect(cleanModelUrl('https://x.test/models/m/')).toBe('https://x.test/models/m/resolve/main/');
+    expect(cleanModelUrl('https://x.test/models/m/resolve/v2/')).toBe(
+      'https://x.test/models/m/resolve/v2/',
+    );
+  });
+
+  it('matches the URL the upstream record already resolves to', () => {
+    expect(configUrl(prebuilt)).toBe(`https://huggingface.co/mlc-ai/${modelId}/resolve/main/mlc-chat-config.json`);
   });
 });

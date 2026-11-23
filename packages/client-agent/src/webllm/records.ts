@@ -62,7 +62,20 @@ export function buildModelRecord(
   return { ...base, model_id: modelId, model, model_lib: modelLib };
 }
 
+/**
+ * WebLLM rewrites `ModelRecord.model` before fetching anything: it appends a
+ * trailing slash and, unless the URL already contains `/resolve/<branch>/`,
+ * appends `resolve/main/`. Mirroring that rule here means the preflight probe
+ * checks the same URL the engine will actually request, instead of a path that
+ * only looks right.
+ */
+export function cleanModelUrl(model: string): string {
+  let url = model.endsWith('/') ? model : `${model}/`;
+  if (!url.match(/.+\/resolve\/.+\//)) url += 'resolve/main/';
+  return new URL(url).href;
+}
+
 /** The config file every weight directory must expose. */
 export function configUrl(record: ModelRecordLike): string {
-  return `${stripSlash(record.model)}/mlc-chat-config.json`;
+  return new URL('mlc-chat-config.json', cleanModelUrl(record.model)).href;
 }

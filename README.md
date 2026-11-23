@@ -246,8 +246,10 @@ const engine = createWebLLMEngine({
 ```
 
 To self-host, copy the MLC model directory (config, `tensor-cache.json`, weight
-shards) to that base, keep the file names, and allow cross-origin reads if the
-host differs from the page. The browser caches the shards after the first load,
+shards) to `<modelBase>/<model_id>/resolve/main/` — WebLLM appends
+`resolve/main/` to whatever `model` you give it, so mirroring that layout is
+what makes the files resolve. Keep the file names, and allow cross-origin reads
+if the host differs from the page. The browser caches the shards after the first load,
 so a second visit is free. If either host is unreachable, the worker says which
 one instead of stalling at 0%.
 
