@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.2.5",
+  "version": "0.3.0",
   "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
   "type": "module",
   "license": "MIT",
@@ -53,6 +53,10 @@
     "./dom": {
       "types": "./dist/dom/index.d.ts",
       "import": "./dist/dom/index.js"
+    },
+    "./chrome-ai": {
+      "types": "./dist/chrome-ai/index.d.ts",
+      "import": "./dist/chrome-ai/index.js"
     }
   },
   "bin": {

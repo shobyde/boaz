@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-11-22
+
+- **`client-agent/chrome-ai`**: an engine over the browser's own on-device model
+  (Chrome's Prompt API). `detectChromeAI()` reports available / downloadable /
+  downloading / unavailable / unsupported, `createChromeAIEngine().prepare()`
+  fetches the model if the browser has to, and `complete()` flattens the
+  conversation into one prompt. When the browser already has the model there is
+  no network request at all, which matters on networks where the model host is
+  blocked.
+- 74 tests.
+
 ## 0.2.5 — 2026-11-22
 
 - The worker probes the model host before loading the engine. A blocked or

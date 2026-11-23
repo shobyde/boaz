@@ -30,6 +30,7 @@ npm install https://github.com/shobyde/client-agent/releases/download/v0.1.5/cli
 | `client-agent/vite` | AST scanner for `defineCapability()` that emits `agent-manifest.json` and serves it as a virtual module |
 | `client-agent/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
 | `client-agent/webllm` | WebGPU worker bridge with download progress and cache reuse |
+| `client-agent/chrome-ai` | Adapter for the browser's own on-device model (Chrome Prompt API), no download from your host |
 | `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text for grounding a model in real content |
 | `client-agent/cli` | `verify`, `manifest`, `codes`, `init --skill`, and a self-check corpus runner |
 
