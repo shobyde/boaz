@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 — 2026-11-22
+
+- Fixes the keyword engine losing a multi-sentence `{ answer }`: the tool result
+  is now parsed per message and anchored to the final full stop, so answers with
+  internal periods survive intact.
+
 ## 0.1.3 — 2026-11-22
 
 - The keyword engine reads `{ answer }` (or `{ text }`) from a query result and

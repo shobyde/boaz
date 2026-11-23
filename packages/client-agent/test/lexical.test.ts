@@ -124,6 +124,20 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Sho is an engineering manager and IC at Conversica.');
   });
 
+  it('keeps a multi-sentence answer intact', async () => {
+    const reply = await engine.complete(
+      request('what is his current role?', [
+        { role: 'assistant', content: '{"tool":"profile.summary","arguments":{}}' },
+        {
+          role: 'user',
+          content:
+            '[client-agent] Query "profile.summary" returned {"answer":"Sho is an engineering manager. He has been at Conversica since Jul 2021.","years":"12+"}.',
+        },
+      ]),
+    );
+    expect(reply.text).toBe('Sho is an engineering manager. He has been at Conversica since Jul 2021.');
+  });
+
   it('reports the outcome instead of repeating the call', async () => {
     const reply = await engine.complete(
       request('take me to billing', [

@@ -129,9 +129,15 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       if (after.some((message) => message.content.startsWith('[client-agent]'))) {
         const trace = after.map((message) => message.content).join(' ');
         if (trace.includes('Navigation succeeded')) return { text: "You're there now. Anything else?" };
-        const query = /Query "([^"]+)" returned ([\s\S]+?)\.(?=\s|$)/.exec(trace);
-        if (query) {
-          const answer = readAnswer(query[2] ?? '');
+        // Parse the tool result from its own message: the payload is JSON that
+        // can contain full stops, so the period ending the sentence must be the
+        // last character, not the first one followed by a space.
+        const queryMessage = after.find((message) =>
+          message.content.startsWith('[client-agent] Query "'),
+        );
+        if (queryMessage) {
+          const payload = /returned ([\s\S]*)\.$/.exec(queryMessage.content)?.[1] ?? '';
+          const answer = readAnswer(payload);
           return { text: answer || 'I read that value.' };
         }
         if (trace.includes('ran successfully')) return { text: 'Done. Anything else?' };
