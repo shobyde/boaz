@@ -25,7 +25,7 @@ npx client-agent init --skill   # writes the skill that keeps capabilities in sy
 | `client-agent/webllm` | WebGPU worker bridge with download progress and cache reuse |
 | `client-agent/cli` | `verify`, `manifest`, `codes`, `init --skill`, and a self-check corpus runner |
 
-One package, five entry points. `typescript`, `react`, `vite` and `@mlc-ai/web-llm` are optional peers — install the ones your app uses.
+One package, five entry points. `react`, `vite` and `@mlc-ai/web-llm` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
 
 ## Declaring a capability
 
