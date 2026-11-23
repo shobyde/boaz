@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.5 — 2026-11-22
+
+- The worker probes the model host before loading the engine. A blocked or
+  throttled huggingface.co used to look like a download stuck at 0%: no
+  progress, no error, forever. It now fails in ten seconds with the host named,
+  and the host can fall back instead of waiting.
+
 ## 0.2.4 — 2026-11-22
 
 - `onStateChange(state, detail)` now carries the engine's own failure message, so

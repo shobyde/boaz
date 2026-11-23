@@ -52,10 +52,42 @@ let temperature = 0.2;
 let maxTokens = 320;
 let loading: Promise<ChatEngine> | undefined;
 
+/** Where WebLLM fetches weights for a prebuilt model id. */
+function artifactUrl(model: string): string {
+  return `https://huggingface.co/mlc-ai/${model}/resolve/main/mlc-chat-config.json`;
+}
+
+/**
+ * A blocked or throttled model host looks exactly like a slow download: no
+ * progress, no error, forever. One small request with a deadline turns that
+ * into a sentence the UI can show.
+ */
+async function probeModelHost(model: string, timeoutMs = 10000): Promise<void> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    // Opaque on purpose: this proves the request completes, not that the
+    // artifact exists. A CORS failure would otherwise look like a dead host.
+    await fetch(artifactUrl(model), {
+      signal: controller.signal,
+      cache: 'no-store',
+      mode: 'no-cors',
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `cannot reach huggingface.co for ${model} (${reason}). The weights are fetched from that host, not from this site.`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function load(model: string): Promise<ChatEngine> {
   if (engine && loadedModel === model) return engine;
   if (loading) return loading;
   loading = (async () => {
+    await probeModelHost(model);
     const webllm = (await import('@mlc-ai/web-llm')) as unknown as {
       CreateMLCEngine: (
         model: string,
