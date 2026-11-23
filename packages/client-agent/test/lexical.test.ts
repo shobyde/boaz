@@ -110,6 +110,20 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Right now: open invoices 3, overdue invoices 2.');
   });
 
+  it('lets a query phrase its own answer', async () => {
+    const reply = await engine.complete(
+      request('what is his current role?', [
+        { role: 'assistant', content: '{"tool":"profile.summary","arguments":{}}' },
+        {
+          role: 'user',
+          content:
+            '[client-agent] Query "profile.summary" returned {"answer":"Sho is an engineering manager and IC at Conversica.","years":"12+"}.',
+        },
+      ]),
+    );
+    expect(reply.text).toBe('Sho is an engineering manager and IC at Conversica.');
+  });
+
   it('reports the outcome instead of repeating the call', async () => {
     const reply = await engine.complete(
       request('take me to billing', [

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 — 2026-11-22
+
+- The keyword engine reads `{ answer }` (or `{ text }`) from a query result and
+  replies with that sentence verbatim, instead of flattening every field into
+  "key value" pairs. Counts still get the flattened summary.
+
 ## 0.1.2 — 2026-11-22
 
 - `CAP007` stops flagging actions whose title opens with a read-only verb

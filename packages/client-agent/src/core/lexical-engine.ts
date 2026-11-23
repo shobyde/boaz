@@ -73,14 +73,24 @@ function inferArguments(
   return args;
 }
 
-function humanize(raw: string): string {
+/**
+ * Turns a query result into a sentence. A capability that returns `answer` (or
+ * `text`) gets to phrase its own reply; anything else is summarised key by key,
+ * which is readable for counts and ambiguous for prose.
+ */
+function readAnswer(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return Object.entries(parsed)
+    if (typeof parsed.answer === 'string') return parsed.answer;
+    if (typeof parsed.text === 'string') return parsed.text;
+    const summary = Object.entries(parsed)
       .map(([key, value]) => `${key.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()} ${String(value)}`)
       .join(', ');
+    if (!summary) return '';
+    return /[.!?]$/.test(summary) ? summary : `Right now: ${summary}.`;
   } catch {
-    return raw.trim();
+    const text = raw.trim();
+    return /[.!?]$/.test(text) ? text : `${text}.`;
   }
 }
 
@@ -119,10 +129,10 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       if (after.some((message) => message.content.startsWith('[client-agent]'))) {
         const trace = after.map((message) => message.content).join(' ');
         if (trace.includes('Navigation succeeded')) return { text: "You're there now. Anything else?" };
-        const query = /Query "([^"]+)" returned (\{[^}]*\}|\[[^\]]*\]|[^.]+)\./.exec(trace);
+        const query = /Query "([^"]+)" returned ([\s\S]+?)\.(?=\s|$)/.exec(trace);
         if (query) {
-          const summary = humanize(query[2] ?? '');
-          return { text: summary ? `Right now: ${summary}.` : 'I read that value.' };
+          const answer = readAnswer(query[2] ?? '');
+          return { text: answer || 'I read that value.' };
         }
         if (trace.includes('ran successfully')) return { text: 'Done. Anything else?' };
         return { text: "I couldn't finish that one." };
