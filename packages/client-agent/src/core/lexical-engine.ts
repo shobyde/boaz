@@ -140,7 +140,12 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
           const answer = readAnswer(payload);
           return { text: answer || 'I read that value.' };
         }
-        if (trace.includes('ran successfully')) return { text: 'Done. Anything else?' };
+        if (trace.includes('ran successfully')) {
+          // Name what ran, so the reply is not the same sentence every time.
+          const ranId = /\[client-agent\] "([^"]+)" ran successfully/.exec(trace)?.[1];
+          const title = ranId ? byId.get(ranId)?.title : undefined;
+          return { text: title ? `Done: ${title}.` : 'Done.' };
+        }
         return { text: "I couldn't finish that one." };
       }
 

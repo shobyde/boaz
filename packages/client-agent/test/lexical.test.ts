@@ -138,6 +138,19 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Sho is an engineering manager. He has been at Conversica since Jul 2021.');
   });
 
+  it('names the action that ran', async () => {
+    const reply = await engine.complete(
+      request('show only paid invoices', [
+        { role: 'assistant', content: '{"tool":"billing.filter_invoices","arguments":{"status":"paid"}}' },
+        {
+          role: 'user',
+          content: '[client-agent] "billing.filter_invoices" ran successfully and returned {"appliedFilter":"paid"}.',
+        },
+      ]),
+    );
+    expect(reply.text).toBe('Done: Filter invoices by status.');
+  });
+
   it('reports the outcome instead of repeating the call', async () => {
     const reply = await engine.complete(
       request('take me to billing', [

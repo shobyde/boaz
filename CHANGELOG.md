@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5 — 2026-11-22
+
+- After an action runs, the keyword engine answers with the capability's title
+  ("Done: Open the printable resume.") instead of the same "Done. Anything
+  else?" every time.
+
 ## 0.1.4 — 2026-11-22
 
 - Fixes the keyword engine losing a multi-sentence `{ answer }`: the tool result
