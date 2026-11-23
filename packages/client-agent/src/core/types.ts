@@ -4,7 +4,7 @@
 
 import type { RegistryLookup } from './registry.js';
 
-export type CapabilityKind = 'route' | 'action' | 'query';
+export type CapabilityKind = 'route' | 'action' | 'query' | 'knowledge';
 
 /** JSON Schema draft-07 subset accepted by the runtime validator. */
 export type JSONSchemaObject = {
@@ -57,6 +57,8 @@ export interface CapabilityDeclaration<
   route?: string;
   paramsSchema?: JSONSchemaObject;
   requiresConfirmation?: boolean;
+  /** Declarative facts the assistant can quote to answer questions without driving the browser. */
+  knowledge?: string;
   handler?: (params: TParams, ctx: ExecutionContext) => Promise<TResult> | TResult;
 }
 

@@ -50,7 +50,7 @@ export interface RetrieverOptions {
 }
 
 /** Weighted fields: the title and keywords carry intent better than prose. */
-const FIELD_WEIGHTS = { title: 3, keywords: 2, description: 1, id: 1.5 } as const;
+const FIELD_WEIGHTS = { title: 3, keywords: 2, description: 1, id: 1.5, knowledge: 2.5 } as const;
 
 /**
  * A BM25 index over capability metadata. Small local models cannot hold the
@@ -88,6 +88,7 @@ export class CapabilityIndex {
       add(capability.id, FIELD_WEIGHTS.id);
       add(capability.keywords?.join(' '), FIELD_WEIGHTS.keywords);
       add(capability.description, FIELD_WEIGHTS.description);
+      add(capability.knowledge, FIELD_WEIGHTS.knowledge);
       const length = [...terms.values()].reduce((sum, v) => sum + v, 0);
       return { capability, terms, length };
     });

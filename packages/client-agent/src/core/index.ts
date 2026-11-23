@@ -1,5 +1,5 @@
 export * from './types.js';
-export { defineCapability, toManifestCapability, CapabilityDefinitionError } from './define.js';
+export { defineCapability, defineKnowledge, toManifestCapability, CapabilityDefinitionError } from './define.js';
 export { CapabilityRegistry, registry, registerCapability } from './registry.js';
 export type { RegistryLookup } from './registry.js';
 export {

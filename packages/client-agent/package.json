@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
   "type": "module",
   "license": "MIT",
@@ -80,7 +80,7 @@
     "typescript": "^5.9.0"
   },
   "peerDependencies": {
-    "@mlc-ai/web-llm": ">=0.2.70",
+    "@mlc-ai/web-llm": "^0.2.89",
     "react": ">=18",
     "vite": ">=5"
   },
@@ -98,10 +98,10 @@
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/react": "^19.0.0",
+    "jsdom": "^25.0.0",
     "react": "^19.0.0",
     "vite": "^7.0.0",
-    "vitest": "^3.2.0",
-    "jsdom": "^25.0.0"
+    "vitest": "^3.2.0"
   },
   "engines": {
     "node": ">=20"

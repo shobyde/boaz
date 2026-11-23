@@ -115,7 +115,16 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
   return {
     id: 'lexical',
     async complete(request: EngineRequest): Promise<{ text: string }> {
-      const query = lastUserMessage(request);
+      let query = lastUserMessage(request);
+      // Conversational follow-ups: "more", "tell me more", "and?" reuse the
+      // previous user question so retrieval has something to work with.
+      const FOLLOWUPS = new Set(['more', 'again', 'also', 'and', 'continue', 'details', 'elaborate']);
+      const tokens = tokenize(query);
+      if (tokens.length <= 1 && FOLLOWUPS.has(tokens[0] ?? '')) {
+        const indexes = realUserMessages(request);
+        const prev = indexes.length >= 2 ? request.messages[indexes[indexes.length - 2]]?.content ?? '' : '';
+        if (prev) query = `${prev} ${query}`;
+      }
       const route = currentRoute(request);
       if (!query) {
         return { text: 'Ask me to take you somewhere or change something on this screen.' };
@@ -162,6 +171,12 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       const confident =
         top !== undefined && top.score >= threshold && (!second || top.score >= second.score * margin);
       if (!top || !confident) {
+        // Conversational fallback: if several knowledge entries matched, stitch
+        // them together instead of giving up.
+        const rankedKnowledge = ranked.filter((entry) => entry.capability.kind === 'knowledge' && entry.capability.knowledge);
+        if (rankedKnowledge.length >= 2) {
+          return { text: rankedKnowledge.map((entry) => entry.capability.knowledge).join(' ') };
+        }
         const suggestions = index
           .search(query, { currentRoute: route, limit: 3 })
           .map((entry) => entry.capability.title);
@@ -174,6 +189,10 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
 
       const capability = byId.get(top.capability.id);
       if (!capability) return { text: "I couldn't match that to anything here." };
+      // Knowledge capabilities answer in prose from declared facts, no browser action.
+      if (capability.kind === 'knowledge' && capability.knowledge) {
+        return { text: capability.knowledge };
+      }
       if (capability.kind === 'route') return { text: callTool(capability.id, {}) };
 
       const args = inferArguments(capability, query);

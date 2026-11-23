@@ -12,7 +12,7 @@ export class CapabilityDefinitionError extends Error {
 }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
-const KINDS: CapabilityKind[] = ['route', 'action', 'query'];
+const KINDS: CapabilityKind[] = ['route', 'action', 'query', 'knowledge'];
 
 /**
  * Declares a navigable destination or an executable client action.
@@ -45,8 +45,11 @@ export function defineCapability<TParams = Record<string, unknown>, TResult = un
   if (declaration.kind === 'route' && !declaration.route) {
     problems.push('kind "route" requires a route path');
   }
-  if (declaration.kind !== 'route' && typeof declaration.handler !== 'function') {
+  if (declaration.kind !== 'route' && declaration.kind !== 'knowledge' && typeof declaration.handler !== 'function') {
     problems.push(`kind "${declaration.kind}" requires a handler function`);
+  }
+  if (declaration.kind === 'knowledge' && (!declaration.knowledge || declaration.knowledge.trim().length < 8)) {
+    problems.push('kind "knowledge" requires a knowledge string of at least 8 characters');
   }
   if (
     declaration.kind === 'route' &&
@@ -87,4 +90,12 @@ export function toManifestCapability(declaration: CapabilityDeclaration): Omit<
 
 export function normalizeSchema(schema: JSONSchemaObject | undefined): JSONSchemaObject | undefined {
   return schema;
+}
+
+/**
+ * Convenience wrapper for declaring knowledge the assistant can quote verbatim.
+ * The text is indexed for retrieval and returned as prose when matched.
+ */
+export function defineKnowledge(declaration: Omit<CapabilityDeclaration, 'kind'> & { knowledge: string }): CapabilityDeclaration {
+  return defineCapability({ ...declaration, kind: 'knowledge' });
 }
