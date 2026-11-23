@@ -356,10 +356,9 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         // cannot use "type" because the stemmer ate the rest of the word.
         const mentions = [
           ...new Set(
-            query
-              .toLowerCase()
-              .split(/[^a-z0-9+#.]+/)
-              .filter((word) => word.length > 1),
+            // Keep the visitor's own capitalisation: echoing "TypeScript" reads
+            // like a person, echoing "typescript" reads like a log line.
+            query.split(/[^A-Za-z0-9+#.]+/).filter((word) => word.length > 1),
           ),
         ].filter((word) => {
           const [stem] = tokenize(word);

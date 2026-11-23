@@ -299,7 +299,7 @@ describe('tool reasoning', () => {
       tools: [],
       observations: { 'projects.list': listResult },
     });
-    expect(completion.text).toBe('No project stack lists typescript.');
+    expect(completion.text).toBe('No project stack lists TypeScript.');
   });
 
   it('does not call the tool again when the result is already in the turn', async () => {
