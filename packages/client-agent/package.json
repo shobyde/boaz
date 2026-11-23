@@ -1,0 +1,99 @@
+{
+  "name": "client-agent",
+  "version": "0.1.0",
+  "description": "Declarative UI capabilities plus an in-browser LLM tool loop: ground a client-side assistant in your routes and actions, run it on WebGPU, fall back to lexical search.",
+  "type": "module",
+  "license": "MIT",
+  "author": "sho byde <shobyde@gmail.com>",
+  "homepage": "https://github.com/shobyde/client-agent",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/shobyde/client-agent.git"
+  },
+  "keywords": [
+    "webllm",
+    "webgpu",
+    "llm",
+    "agent",
+    "tool-calling",
+    "react-router",
+    "vite-plugin",
+    "client-side"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./core": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./react": {
+      "types": "./dist/react/index.d.ts",
+      "import": "./dist/react/index.js"
+    },
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "import": "./dist/vite/index.js"
+    },
+    "./webllm": {
+      "types": "./dist/webllm/index.d.ts",
+      "import": "./dist/webllm/index.js"
+    },
+    "./webllm/worker": {
+      "types": "./dist/webllm/worker.d.ts",
+      "import": "./dist/webllm/worker.js"
+    },
+    "./build": {
+      "types": "./dist/build/index.d.ts",
+      "import": "./dist/build/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "client-agent": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": [
+    "./dist/webllm/worker.js"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "typescript": "^5.9.0"
+  },
+  "peerDependencies": {
+    "@mlc-ai/web-llm": ">=0.2.70",
+    "react": ">=18",
+    "vite": ">=5"
+  },
+  "peerDependenciesMeta": {
+    "@mlc-ai/web-llm": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "vite": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "react": "^19.0.0",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

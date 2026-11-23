@@ -1,0 +1,6 @@
+{
+  "codes": [
+    "CAP005"
+  ],
+  "notes": "$ref cannot be enforced, format is ignored"
+}

@@ -1,0 +1,21 @@
+{
+  "name": "client-agent-workspace",
+  "private": true,
+  "version": "0.0.0",
+  "packageManager": "pnpm@12.3.4",
+  "scripts": {
+    "build": "pnpm --filter client-agent build",
+    "test": "pnpm --filter client-agent test",
+    "typecheck": "pnpm --filter client-agent typecheck && pnpm --filter demo typecheck",
+    "selfcheck": "pnpm build && node packages/client-agent/dist/cli/index.js verify --self-check fixtures/selfcheck",
+    "verify:demo": "pnpm build && node packages/client-agent/dist/cli/index.js verify apps/demo",
+    "demo": "pnpm build && pnpm --filter demo dev",
+    "demo:build": "pnpm build && pnpm --filter demo build",
+    "check": "pnpm build && pnpm --filter client-agent test && node packages/client-agent/dist/cli/index.js verify --self-check fixtures/selfcheck && node packages/client-agent/dist/cli/index.js verify apps/demo && pnpm --filter demo build"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  }
+}

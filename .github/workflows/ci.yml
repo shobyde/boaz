@@ -1,0 +1,35 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test
+      - name: Self-check (every fixture must produce exactly its declared codes)
+        run: node packages/client-agent/dist/cli/index.js verify --self-check fixtures/selfcheck
+      - name: Verify the demo app
+        run: node packages/client-agent/dist/cli/index.js verify apps/demo
+      - name: Manifest is deterministic
+        run: |
+          node packages/client-agent/dist/cli/index.js manifest apps/demo --out /tmp/a.json
+          node packages/client-agent/dist/cli/index.js manifest apps/demo --out /tmp/b.json
+          diff /tmp/a.json /tmp/b.json
+      - name: Typecheck the demo
+        run: pnpm --filter demo typecheck
+      - name: Build the demo
+        run: pnpm --filter demo build

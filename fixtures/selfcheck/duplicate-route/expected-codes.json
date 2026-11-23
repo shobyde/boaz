@@ -1,0 +1,6 @@
+{
+  "codes": [
+    "CAP010"
+  ],
+  "notes": "two route capabilities normalise to one path"
+}

@@ -1,0 +1,12 @@
+# Changelog
+
+## 0.1.0 — 2026-11-22
+
+First cut of the package and the demo.
+
+- `client-agent/core`: `defineCapability`, registry with late registration, JSON Schema subset validator, BM25 retrieval with route boost, prompt assembly with a token budget, tool-call parser, execution loop (schema retry, confirmation gate, step cap, navigate-then-wait), deterministic lexical engine.
+- `client-agent/build` + `client-agent/cli`: TypeScript-AST extraction of literal declarations, deterministic `agent-manifest.json`, 10 diagnostic codes, `verify` / `manifest` / `codes` / `init --skill`, and a self-check runner over 9 fixtures.
+- `client-agent/vite`: build plugin emitting the manifest plus a `client-agent:manifest` virtual module, with a dev watcher.
+- `client-agent/react`: `<AgentProvider>`, `useAgentChat`, `useRegisterCapability`.
+- `client-agent/webllm`: WebGPU worker, engine bridge with progress and lazy load, `createAutoEngine` fallback.
+- `apps/demo`: Ledger invoices app, five routes, twelve capabilities, keyword and on-device modes.

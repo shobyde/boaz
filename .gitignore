@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.client-agent/
+*.log
+.DS_Store
+apps/demo/dist/
+*.tsbuildinfo

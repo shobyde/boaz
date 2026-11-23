@@ -1,0 +1,6 @@
+{
+  "codes": [
+    "CAP007"
+  ],
+  "notes": "mutating action without requiresConfirmation"
+}
