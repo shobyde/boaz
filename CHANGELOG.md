@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.4 — 2026-11-23
+
+- Answer rules can declare `explain(context)`, one plain-language line describing what the rule did
+  ("Checked 5 project stacks for Python: found it in Readback, Groundglass"). It travels on the
+  `inference` step as `label`, so a host never has to print a Datalog goal at a visitor.
+- `streaming` accepts `leadInMs`: a pause before the first delta so the trace is readable before the
+  answer starts. Skipped when the tab is hidden, like the per-chunk pacing.
+- 91 tests.
+
 ## 0.4.3 — 2026-11-23
 
 - A matched answer rule now composes even when its goal finds nothing, so "which projects use

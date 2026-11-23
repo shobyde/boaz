@@ -124,6 +124,8 @@ export type TurnStep =
       terms: string[];
       solutions: Record<string, string>[];
       rule?: string;
+      /** Plain-language line the app wrote for this step, if it declared one. */
+      label?: string;
     }
   | { type: 'navigate'; capabilityId: string; route: string }
   | { type: 'action'; capabilityId: string; args: Record<string, unknown>; result: unknown }
@@ -181,6 +183,13 @@ export interface AgentRuntimeOptions {
    * presentation only: the text is already known when the first delta fires.
    * Off by default.
    */
-  streaming?: false | { chunkChars?: number; paceMs?: number };
+  streaming?:
+    | false
+    | {
+        chunkChars?: number;
+        paceMs?: number;
+        /** Pause before the first delta, so a host can show the trace first. */
+        leadInMs?: number;
+      };
   onEvent?: (event: AgentEvent) => void;
 }

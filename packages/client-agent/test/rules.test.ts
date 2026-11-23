@@ -113,6 +113,20 @@ describe('createRulesEngine', () => {
     expect(completion.steps?.[0]).toMatchObject({ rule: 'projects_using(?P) :- uses(?P, ?T), asked(?T)' });
   });
 
+  it('carries the app\'s plain-language explanation', async () => {
+    const engine = createRulesEngine({
+      knowledge: projects,
+      answers: [
+        answerRule({
+          explain: ({ solutions, terms }) => `Checked ${solutions.length} projects for ${terms.join(' or ')}`,
+        }),
+      ],
+      capabilities: [routeCapability],
+    });
+    const completion = await ask(engine, 'which projects use python?');
+    expect(completion.steps?.[0]).toMatchObject({ label: 'Checked 2 projects for Python 3.10+' });
+  });
+
   it('falls back to keyword matching when no rule applies', async () => {
     const engine = createRulesEngine({ knowledge: projects, answers: [answerRule()], capabilities: [routeCapability] });
     const completion = await ask(engine, 'take me to the projects');
@@ -156,7 +170,11 @@ describe('createRulesEngine', () => {
 });
 
 describe('streaming', () => {
-  function runtimeWith(events: AgentEvent[], text: string, streaming?: { chunkChars?: number; paceMs?: number }) {
+  function runtimeWith(
+    events: AgentEvent[],
+    text: string,
+    streaming?: { chunkChars?: number; paceMs?: number; leadInMs?: number },
+  ) {
     const engine: AgentEngine = { id: 'fake', complete: async () => ({ text }) };
     return new AgentRuntime({
       engine,
@@ -182,6 +200,14 @@ describe('streaming', () => {
     expect(events.findIndex((event) => event.type === 'turn')).toBeGreaterThan(
       events.findLastIndex((event) => event.type === 'delta'),
     );
+  });
+
+  it('holds the first delta for the lead-in', async () => {
+    const events: AgentEvent[] = [];
+    const runtime = runtimeWith(events, 'Held.', { chunkChars: 5, paceMs: 0, leadInMs: 40 });
+    const started = Date.now();
+    await runtime.send('hello');
+    expect(Date.now() - started).toBeGreaterThanOrEqual(30);
   });
 
   it('stays silent when streaming is off', async () => {

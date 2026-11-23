@@ -363,6 +363,10 @@ export class AgentRuntime {
     // turn a 90-character reply into a nine-second crawl. Pace only when visible.
     const hidden = typeof document !== 'undefined' && document.hidden;
     const paceMs = hidden ? 0 : (streaming.paceMs ?? 0);
+    // A beat before the first word, so the step that produced the answer is
+    // readable instead of flashing past.
+    const leadInMs = hidden ? 0 : (streaming.leadInMs ?? 0);
+    if (leadInMs > 0) await new Promise((resolve) => setTimeout(resolve, leadInMs));
     for (const chunk of chunkForDisplay(text, chunkChars)) {
       this.emit({ type: 'delta', text: chunk });
       if (paceMs > 0) await new Promise((resolve) => setTimeout(resolve, paceMs));

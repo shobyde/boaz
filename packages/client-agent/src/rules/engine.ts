@@ -20,6 +20,12 @@ export interface AnswerRule {
    * engine answer instead.
    */
   compose: (context: AnswerContext) => string;
+  /**
+   * One plain-language line describing what this rule did, shown with the
+   * answer ("looked through 5 project stacks for Python · 2 matches"). Without
+   * it, hosts can only fall back to the goal text, which is not English.
+   */
+  explain?: (context: AnswerContext) => string;
   /** Minimum retrieval score before this rule is tried. Default 1.0. */
   threshold?: number;
 }
@@ -119,6 +125,14 @@ export function createRulesEngine(options: RulesEngineOptions): AgentEngine {
               })
               .trim();
             if (text) {
+              const context = {
+                query,
+                bindings: solutions[0]?.bindings ?? {},
+                solutions,
+                knowledge,
+                terms,
+                lookup: (goal: string) => knowledge.query(goal, { assume }),
+              };
               return {
                 text,
                 steps: [
@@ -129,6 +143,7 @@ export function createRulesEngine(options: RulesEngineOptions): AgentEngine {
                     terms,
                     solutions: solutions.map((solution) => solution.bindings),
                     rule: knowledge.rules.find((r) => r.head.rel === rule.goal.split('(')[0]?.trim())?.source,
+                    ...(rule.explain ? { label: rule.explain(context).trim() } : {}),
                   },
                 ],
               };
