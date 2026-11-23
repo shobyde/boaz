@@ -147,6 +147,23 @@ function evaluate(node: ts.Node, consts: Map<string, ts.Node>): unknown {
     return evaluate(argument, consts);
   }
 
+  // Prose metadata is routinely wrapped across lines with `'a ' + 'b'`. Fold
+  // those operands when each side is static, so a long description or a
+  // knowledge paragraph does not fail the scan.
+  if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    const left = evaluate(inner.left, consts);
+    const right = evaluate(inner.right, consts);
+    const stringish = (value: unknown): value is string | number => typeof value === 'string' || typeof value === 'number';
+    if (typeof left === 'string' || typeof right === 'string') {
+      if (!stringish(left) || !stringish(right)) {
+        throw new NotStatic('string concatenation with a non-literal operand');
+      }
+      return `${left}${right}`;
+    }
+    if (typeof left === 'number' && typeof right === 'number') return left + right;
+    throw new NotStatic('unsupported binary expression');
+  }
+
   return literalValue(inner);
 }
 

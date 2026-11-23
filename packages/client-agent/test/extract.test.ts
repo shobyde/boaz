@@ -130,6 +130,22 @@ describe('scanSource', () => {
     expect(scanned.capabilities[0]?.kind).toBe('action');
   });
 
+  it('folds string concatenation in metadata', () => {
+    const scanned = scanSource(
+      `import { defineKnowledge } from 'client-agent/core';
+       export const fact = defineKnowledge({
+         id: 'k.prose',
+         title: 'Prose',
+         description: 'A description wrapped across two source lines for width.',
+         knowledge: 'First sentence of the fact. ' +
+           'Second sentence of the same fact.',
+       });`,
+      'src/a.ts',
+    );
+    expect(scanned.diagnostics).toEqual([]);
+    expect(scanned.capabilities[0]?.knowledge).toBe('First sentence of the fact. Second sentence of the same fact.');
+  });
+
   it('collects router paths from JSX and router configs', () => {
     const scanned = scanSource(
       `export const routes = [

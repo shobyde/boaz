@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.6 — 2026-11-23
+
+- Static metadata may be wrapped with string concatenation (`'a ' + 'b'`).
+  The scanner folds those operands, so a knowledge paragraph or a long
+  description broken across source lines is read instead of failing the scan
+  as CAP006 "cannot read this declaration statically".
+- 86 tests.
+
 ## 0.3.5 — 2026-11-23
 
 - The build-time scanner recognises `defineKnowledge()` and its import alias,
