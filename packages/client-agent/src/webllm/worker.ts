@@ -52,9 +52,16 @@ let temperature = 0.2;
 let maxTokens = 320;
 let loading: Promise<ChatEngine> | undefined;
 
+/**
+ * Weight hosts, tried in order. HuggingFace is the canonical one; the mirror
+ * serves the same paths for networks where the main host is blocked or
+ * throttled into silence.
+ */
+const WEIGHT_HOSTS = ['https://huggingface.co', 'https://hf-mirror.com'];
+
 /** Where WebLLM fetches weights for a prebuilt model id. */
-function artifactUrl(model: string): string {
-  return `https://huggingface.co/mlc-ai/${model}/resolve/main/mlc-chat-config.json`;
+function artifactUrl(model: string, host = WEIGHT_HOSTS[0]): string {
+  return `${host}/mlc-ai/${model}/resolve/main/mlc-chat-config.json`;
 }
 
 /**
@@ -62,39 +69,64 @@ function artifactUrl(model: string): string {
  * progress, no error, forever. One small request with a deadline turns that
  * into a sentence the UI can show.
  */
-async function probeModelHost(model: string, timeoutMs = 10000): Promise<void> {
+async function probeHost(url: string, timeoutMs = 10000): Promise<void> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // Opaque on purpose: this proves the request completes, not that the
     // artifact exists. A CORS failure would otherwise look like a dead host.
-    await fetch(artifactUrl(model), {
-      signal: controller.signal,
-      cache: 'no-store',
-      mode: 'no-cors',
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `cannot reach huggingface.co for ${model} (${reason}). The weights are fetched from that host, not from this site.`,
-    );
+    await fetch(url, { signal: controller.signal, cache: 'no-store', mode: 'no-cors' });
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Returns the first host that answers, so one blocked CDN is not fatal. */
+async function probeModelHost(model: string): Promise<string> {
+  const failures: string[] = [];
+  for (const host of WEIGHT_HOSTS) {
+    try {
+      await probeHost(artifactUrl(model, host));
+      return host;
+    } catch (error) {
+      failures.push(`${host.replace('https://', '')}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  throw new Error(
+    `cannot reach a weight host for ${model} (${failures.join('; ')}). The weights are fetched from those hosts, not from this site.`,
+  );
 }
 
 async function load(model: string): Promise<ChatEngine> {
   if (engine && loadedModel === model) return engine;
   if (loading) return loading;
   loading = (async () => {
-    await probeModelHost(model);
+    const host = await probeModelHost(model);
     const webllm = (await import('@mlc-ai/web-llm')) as unknown as {
       CreateMLCEngine: (
         model: string,
-        config: { initProgressCallback?: (report: { progress: number; text: string }) => void },
+        config: {
+          appConfig?: unknown;
+          initProgressCallback?: (report: { progress: number; text: string }) => void;
+        },
       ) => Promise<ChatEngine>;
+      prebuiltAppConfig?: { model_list: Array<Record<string, unknown>> };
     };
+    // Point every artifact at the host that answered, instead of assuming the
+    // canonical one.
+    let appConfig: unknown;
+    if (host !== WEIGHT_HOSTS[0] && webllm.prebuiltAppConfig) {
+      const config = JSON.parse(JSON.stringify(webllm.prebuiltAppConfig)) as {
+        model_list: Array<Record<string, unknown>>;
+      };
+      config.model_list = config.model_list.map((entry) => ({
+        ...entry,
+        model: String(entry.model ?? '').replace(WEIGHT_HOSTS[0], host),
+      }));
+      appConfig = config;
+    }
     const created = await webllm.CreateMLCEngine(model, {
+      appConfig,
       initProgressCallback: (report) => {
         self.postMessage({ type: 'progress', progress: report.progress, text: report.text });
       },
