@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 — 2026-11-23
+
+- Streaming no longer crawls in a background tab. Browsers throttle `setTimeout` to roughly once a
+  second when the page is hidden, so a paced reply took seconds to finish after the visitor switched
+  tabs; the runtime now skips the pause when `document.hidden` and still paces in the foreground.
+- 88 tests.
+
 ## 0.4.1 — 2026-11-23
 
 - `createLexicalEngine()` answers navigation requests by destination. "Take me to the projects"

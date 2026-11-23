@@ -359,7 +359,10 @@ export class AgentRuntime {
     const streaming = this.options.streaming;
     if (!streaming) return;
     const chunkChars = Math.max(4, streaming.chunkChars ?? 16);
-    const paceMs = streaming.paceMs ?? 0;
+    // Browsers throttle timers in hidden tabs to about once a second, which would
+    // turn a 90-character reply into a nine-second crawl. Pace only when visible.
+    const hidden = typeof document !== 'undefined' && document.hidden;
+    const paceMs = hidden ? 0 : (streaming.paceMs ?? 0);
     for (const chunk of chunkForDisplay(text, chunkChars)) {
       this.emit({ type: 'delta', text: chunk });
       if (paceMs > 0) await new Promise((resolve) => setTimeout(resolve, paceMs));
