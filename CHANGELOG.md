@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.3 — 2026-11-23
+
+- A matched answer rule now composes even when its goal finds nothing, so "which projects use
+  TypeScript" can reply "No project lists TypeScript" instead of falling through to unrelated prose.
+  Returning an empty string still declines the turn to the next engine.
+- 89 tests.
+
 ## 0.4.2 — 2026-11-23
 
 - Streaming no longer crawls in a background tab. Browsers throttle `setTimeout` to roughly once a

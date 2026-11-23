@@ -104,33 +104,34 @@ export function createRulesEngine(options: RulesEngineOptions): AgentEngine {
         if (best && best.score >= threshold) {
           const rule = answers.find((answer) => answer.id === best.capability.id);
           if (rule) {
+            // Compose even with no solutions: "no project lists TypeScript" is a
+            // better answer than unrelated prose from the keyword engine. An empty
+            // string still declines.
             const solutions = knowledge.query(rule.goal, { assume });
-            if (solutions.length > 0) {
-              const text = rule
-                .compose({
-                  query,
-                  bindings: solutions[0]?.bindings ?? {},
-                  solutions,
-                  knowledge,
-                  terms,
-                  lookup: (goal) => knowledge.query(goal, { assume }),
-                })
-                .trim();
-              if (text) {
-                return {
-                  text,
-                  steps: [
-                    {
-                      type: 'inference',
-                      capabilityId: rule.id,
-                      goal: rule.goal,
-                      terms,
-                      solutions: solutions.map((solution) => solution.bindings),
-                      rule: knowledge.rules.find((r) => r.head.rel === rule.goal.split('(')[0]?.trim())?.source,
-                    },
-                  ],
-                };
-              }
+            const text = rule
+              .compose({
+                query,
+                bindings: solutions[0]?.bindings ?? {},
+                solutions,
+                knowledge,
+                terms,
+                lookup: (goal) => knowledge.query(goal, { assume }),
+              })
+              .trim();
+            if (text) {
+              return {
+                text,
+                steps: [
+                  {
+                    type: 'inference',
+                    capabilityId: rule.id,
+                    goal: rule.goal,
+                    terms,
+                    solutions: solutions.map((solution) => solution.bindings),
+                    rule: knowledge.rules.find((r) => r.head.rel === rule.goal.split('(')[0]?.trim())?.source,
+                  },
+                ],
+              };
             }
           }
         }

@@ -120,11 +120,27 @@ describe('createRulesEngine', () => {
     expect(completion.steps ?? []).toHaveLength(0);
   });
 
-  it('falls back when the rule matches but returns nothing', async () => {
+  it('composes an answer even when the rule finds nothing', async () => {
+    const engine = createRulesEngine({
+      knowledge: projects,
+      answers: [
+        answerRule({
+          compose: ({ solutions, terms }) =>
+            solutions.length ? `${solutions.length} matched.` : terms.length ? `No project lists ${terms.join(' or ')}.` : '',
+        }),
+      ],
+      capabilities: [routeCapability],
+    });
+    // "Readback" is a declared constant (a project title), not a technology, so
+    // the rule matches while the join finds nothing.
+    const completion = await ask(engine, 'which projects use readback?');
+    expect(completion.text).toMatch(/^No project lists /);
+  });
+
+  it('falls back when compose declines on an empty result', async () => {
     const engine = createRulesEngine({ knowledge: projects, answers: [answerRule()], capabilities: [routeCapability] });
     const completion = await ask(engine, 'which projects use cobol?');
-    expect(completion.text).not.toBe('');
-    expect(completion.text).not.toContain('use it');
+    expect(completion.text).toContain('Selected projects');
   });
 
   it('falls back when compose declines with an empty string', async () => {
