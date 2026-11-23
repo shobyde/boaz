@@ -267,6 +267,6 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.2.1`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Publishing is wired in `.github/workflows/release.yml` and runs on a tag once an `NPM_TOKEN` secret exists; until then the release tarball is the install path. It is already running in production on shobyde.com.
+`0.2.2`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Publishing is wired in `.github/workflows/release.yml` and runs on a tag once an `NPM_TOKEN` secret exists; until then the release tarball is the install path. It is already running in production on shobyde.com.
 
 MIT.

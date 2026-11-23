@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.2 — 2026-11-22
+
+- `detectWebGPU()` asks the browser for an adapter before a host promises an
+  on-device model. `navigator.gpu` can exist with no usable GPU (headless
+  Chromium, remote sessions), which used to mean a 1.1 GB download ending in a
+  failure.
+
 ## 0.2.1 — 2026-11-22
 
 - A turn that ends in a surface returns an empty text, and the keyword engine

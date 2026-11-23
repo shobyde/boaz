@@ -45,6 +45,20 @@ export function isWebGPUAvailable(): boolean {
   return typeof navigator !== 'undefined' && 'gpu' in navigator && Boolean(navigator.gpu);
 }
 
+/**
+ * `navigator.gpu` can exist while no adapter does (headless Chromium, a blocklisted
+ * GPU, a remote desktop session). Ask for an adapter before promising a model.
+ */
+export async function detectWebGPU(): Promise<'available' | 'unsupported' | 'no-adapter'> {
+  if (!isWebGPUAvailable()) return 'unsupported';
+  try {
+    const adapter = await navigator.gpu.requestAdapter();
+    return adapter ? 'available' : 'no-adapter';
+  } catch {
+    return 'no-adapter';
+  }
+}
+
 /** Picks a model for the device: 8 GB+ gets the standard tier. */
 export function pickModelTier(memoryGb?: number): keyof ModelProfile {
   const memory =
