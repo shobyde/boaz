@@ -1,10 +1,10 @@
 name: release
 
-# Publishes packages/client-agent to npm from a version tag, or on demand.
-# Needs a repository secret named NPM_TOKEN: an npm granular access token with
-# read and write on the client-agent package. Until it exists this workflow
-# fails at the publish step, and the GitHub release tarball remains the way to
-# install the package.
+# Cuts a GitHub release for every version tag, with the tarball the site installs
+# attached, and publishes to npm once an NPM_TOKEN secret exists (a granular npm
+# access token with read and write on the client-agent package). Without the
+# token the npm step is skipped instead of failing, so the tag still produces a
+# green release and an installable tarball.
 
 on:
   push:
@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write # create the release and attach the tarball
   id-token: write # provenance
 
 jobs:
@@ -46,8 +46,33 @@ jobs:
           fi
           echo "publishing $pkg"
 
-      - name: Publish
+      - name: Pack the tarball the site installs
+        run: |
+          cd packages/client-agent
+          npm pack --pack-destination "$GITHUB_WORKSPACE"
+          ls -l "$GITHUB_WORKSPACE"/client-agent-*.tgz
+
+      - name: Publish to npm
         working-directory: packages/client-agent
-        run: npm publish --access public --provenance
+        run: |
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "No NPM_TOKEN secret. Skipping npm publish: the tarball on the GitHub release is the install path."
+            exit 0
+          fi
+          npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Attach the tarball to the GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          tgz=$(ls client-agent-*.tgz)
+          echo "attaching $tgz to $tag"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            gh release upload "$tag" "$tgz" --clobber
+          else
+            gh release create "$tag" "$tgz" --title "client-agent ${tag#v}" --generate-notes
+          fi
