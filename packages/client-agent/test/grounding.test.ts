@@ -239,7 +239,7 @@ describe('tool reasoning', () => {
 
   it('surfaces a broken fact adapter instead of hiding it', async () => {
     const engine = createRulesEngine({
-      knowledge: new KnowledgeBase({ rules: ['project(?P, ?T).'] }),
+      knowledge: new KnowledgeBase(),
       answers: [
         {
           id: 'projects.broken',
