@@ -146,6 +146,7 @@ export class AgentRuntime {
 
     let toolCalls = 0;
     let corrections = 0;
+    const observations: Record<string, unknown> = {};
     let finalText: string | undefined;
     let textStepped = false;
     let stoppedBy: TurnResult['stoppedBy'] = 'final';
@@ -159,6 +160,7 @@ export class AgentRuntime {
       const completion = await this.options.engine.complete({
         messages,
         tools: buildToolSpecs(selected),
+        observations: { ...observations },
       });
       for (const step of completion.steps ?? []) push(step);
       const parsed = parseModelOutput(completion.text);
@@ -305,6 +307,8 @@ export class AgentRuntime {
           );
           continue;
         }
+
+        observations[capability.id] = result;
 
         if (capability.kind === 'query') {
           push({ type: 'query', capabilityId: capability.id, args, result });

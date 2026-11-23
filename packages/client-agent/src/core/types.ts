@@ -90,6 +90,12 @@ export interface ToolSpec {
 export interface EngineRequest {
   messages: ChatMessage[];
   tools: ToolSpec[];
+  /**
+   * Results of capabilities that ran during this turn, keyed by id. Passed
+   * structurally because the transcript version is clipped for prompt budgets;
+   * an engine that reasons over tool data needs the whole value.
+   */
+  observations?: Record<string, unknown>;
   signal?: AbortSignal;
 }
 

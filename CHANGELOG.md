@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.3 — 2026-11-23
+
+- `EngineRequest.observations` carries this turn's tool results structurally. The transcript copy is
+  clipped to a prompt budget, so a large result (a project list with full stacks) arrived as
+  truncated JSON, failed to parse, and the answer degraded to an echo of the payload. Engines that
+  reason over tool data now get the whole value; the transcript parse stays as a fallback.
+- 109 tests.
+
 ## 0.5.2 — 2026-11-23
 
 - A follow-up that names a term the data does not have ("and SQLite?" when no stack lists it) no

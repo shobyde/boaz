@@ -290,7 +290,11 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       // Run the rule's read-only tools first, one per turn, and turn their
       // results into facts. This is the loop an LLM gets from tool calling, with
       // the plan declared instead of guessed.
+      // Structured results when the runtime supplies them (it does), plus the
+      // transcript fallback for hosts that drive the engine by hand. Structured
+      // values win: the transcript copy is clipped for prompt budgets.
       const observed = observationsThisTurn(request);
+      for (const [id, value] of Object.entries(request.observations ?? {})) observed.set(id, value);
       const stepFacts: FactRow[] = [];
       if (matched?.steps?.length) {
         for (const step of matched.steps) {

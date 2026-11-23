@@ -82,6 +82,46 @@ function setup(options: {
 }
 
 describe('AgentRuntime', () => {
+  it('hands tool results to the engine as structured observations', async () => {
+    const seen: Array<Record<string, unknown> | undefined> = [];
+    const handler = vi.fn(async () => ({ posts: 58, newest: 'A post' }));
+    const registry = new CapabilityRegistry();
+    registry.register(
+      defineCapability({
+        id: 'blog.stats',
+        kind: 'query',
+        title: 'Log statistics',
+        description: 'Reads how many posts are published and which is newest.',
+        paramsSchema: { type: 'object', properties: {}, additionalProperties: false },
+        handler,
+      }),
+    );
+    const runtime = new AgentRuntime({
+      engine: {
+        id: 'observing',
+        async complete(request) {
+          seen.push(request.observations);
+          if (!request.observations?.['blog.stats']) return { text: tool('blog.stats') };
+          return { text: `saw ${JSON.stringify(request.observations['blog.stats'])}` };
+        },
+      },
+      capabilities: [
+        {
+          id: 'blog.stats',
+          kind: 'query',
+          title: 'Log statistics',
+          description: 'Reads how many posts are published and which is newest.',
+        },
+      ],
+      registry,
+      getSnapshot: () => ({ currentRoute: '/' }),
+      dispatch: () => undefined,
+    });
+    const result = await runtime.send('how many posts?');
+    expect(result.text).toContain('"posts":58');
+    expect(seen.at(-1)?.['blog.stats']).toEqual({ posts: 58, newest: 'A post' });
+  });
+
   it('navigates to a route capability and reports the destination', async () => {
     const { runtime, navigated } = setup({
       capabilities: [billingRoute],
