@@ -37,6 +37,16 @@ export interface WebLLMEngineOptions {
   workerUrl?: string | URL;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * Self-hosted weight directory base, replacing huggingface.co. Serve the
+   * MLC model directory at `<modelBase>/<model_id>/` (mlc-chat-config.json,
+   * tensor-cache.json and the weight shards).
+   */
+  modelBase?: string;
+  /** Self-hosted compiled library base, replacing the upstream `.wasm` host. */
+  modelLibBase?: string;
+  /** WebLLM's cache backend. Cache API by default; IndexedDB also works. */
+  cacheBackend?: 'cache' | 'indexeddb';
   /** Streaming download progress: 0–1 plus the engine's own status line. */
   onProgress?: (report: { progress: number; text: string }) => void;
   /** State changes, with the underlying message when the engine fails. */
@@ -154,7 +164,15 @@ export function createWebLLMEngine(options: WebLLMEngineOptions = {}): WebLLMEng
       readyResolve = resolve;
       readyReject = reject;
     });
-    post({ type: 'init', model, temperature: options.temperature, maxTokens: options.maxTokens });
+    post({
+      type: 'init',
+      model,
+      temperature: options.temperature,
+      maxTokens: options.maxTokens,
+      modelBase: options.modelBase,
+      modelLibBase: options.modelLibBase,
+      cacheBackend: options.cacheBackend,
+    });
     return readyPromise;
   };
 

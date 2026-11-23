@@ -219,6 +219,37 @@ The model never sees a URL it can invent, a selector it can guess, or a function
 - **`createWebLLMEngine()`** — WebGPU worker, ~1.2 GB compact tier / ~2.4 GB standard, progress events, cached by the engine after first load. Nothing downloads until the chat is opened.
 - **`createLexicalEngine()`** — deterministic BM25 over the manifest. It navigates, calls actions when every required argument is unambiguous from the visitor's words (enum value present, email present), and asks otherwise. No download, no GPU, testable in CI. This is what the screenshots above run on.
 - **`AgentEngine`** — a six-line interface (`id` + `complete(messages, tools)`). Wrap your own endpoint, a hosted model, or a test double.
+- **`chrome-ai`** — Chrome's own on-device model through the Prompt API. Nothing is fetched, because the browser already has it.
+
+### Getting the weights onto the browser
+
+WebLLM's documented unit is a **model record**: two URLs and an id.
+
+```ts
+{ model: '<dir with mlc-chat-config.json + shards>',
+  model_id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+  model_lib: '<compiled .wasm for that model>' }
+```
+
+The prebuilt records point `model` at `huggingface.co` and `model_lib` at
+`raw.githubusercontent.com`. Passing your own `appConfig` is the documented way
+to serve either from somewhere else — which is what `modelBase` and
+`modelLibBase` do here, without discarding the entry's VRAM hints or overrides:
+
+```ts
+const engine = createWebLLMEngine({
+  tier: 'compact',
+  modelBase: 'https://shobyde.com/models',   // serves /models/<model_id>/…
+  modelLibBase: 'https://shobyde.com/libs',  // serves the .wasm files
+  cacheBackend: 'cache',                     // or 'indexeddb'
+});
+```
+
+To self-host, copy the MLC model directory (config, `tensor-cache.json`, weight
+shards) to that base, keep the file names, and allow cross-origin reads if the
+host differs from the page. The browser caches the shards after the first load,
+so a second visit is free. If either host is unreachable, the worker says which
+one instead of stalling at 0%.
 
 Retrieval keeps the prompt under ~1,500 tokens: top-8 capabilities by BM25 over title/keywords/description, boosted for the current route, with one line per capability.
 

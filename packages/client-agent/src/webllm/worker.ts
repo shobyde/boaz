@@ -21,6 +21,12 @@ export type WorkerRequest =
       model: string;
       temperature?: number;
       maxTokens?: number;
+      /** Self-hosted weight directory base, replacing huggingface.co. */
+      modelBase?: string;
+      /** Self-hosted `.wasm` base, replacing the upstream library host. */
+      modelLibBase?: string;
+      /** Cache API (default) or IndexedDB, per WebLLM's AppConfig. */
+      cacheBackend?: 'cache' | 'indexeddb';
     }
   | {
       type: 'complete';
@@ -52,17 +58,7 @@ let temperature = 0.2;
 let maxTokens = 320;
 let loading: Promise<ChatEngine> | undefined;
 
-/**
- * Weight hosts, tried in order. HuggingFace is the canonical one; the mirror
- * serves the same paths for networks where the main host is blocked or
- * throttled into silence.
- */
-const WEIGHT_HOSTS = ['https://huggingface.co', 'https://hf-mirror.com'];
-
-/** Where WebLLM fetches weights for a prebuilt model id. */
-function artifactUrl(model: string, host = WEIGHT_HOSTS[0]): string {
-  return `${host}/mlc-ai/${model}/resolve/main/mlc-chat-config.json`;
-}
+import { buildModelRecord, configUrl, type ModelRecordLike, type WeightHosts } from './records.js';
 
 /**
  * A blocked or throttled model host looks exactly like a slow download: no
@@ -81,27 +77,50 @@ async function probeHost(url: string, timeoutMs = 10000): Promise<void> {
   }
 }
 
-/** Returns the first host that answers, so one blocked CDN is not fatal. */
-async function probeModelHost(model: string): Promise<string> {
-  const failures: string[] = [];
-  for (const host of WEIGHT_HOSTS) {
-    try {
-      await probeHost(artifactUrl(model, host));
-      return host;
-    } catch (error) {
-      failures.push(`${host.replace('https://', '')}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
   }
-  throw new Error(
-    `cannot reach a weight host for ${model} (${failures.join('; ')}). The weights are fetched from those hosts, not from this site.`,
-  );
 }
 
-async function load(model: string): Promise<ChatEngine> {
+/**
+ * Both halves of a model are fetched from remote hosts: the weights and the
+ * compiled library. A blocked host looks like a stalled install, so name the
+ * host that failed rather than the model.
+ */
+async function probeRecord(record: ModelRecordLike): Promise<void> {
+  try {
+    await probeHost(configUrl(record));
+  } catch (error) {
+    throw new Error(
+      `cannot reach ${hostOf(record.model)} for the weights (${error instanceof Error ? error.message : String(error)}). ` +
+        'They are fetched from that host, not from this site.',
+    );
+  }
+  if (!record.model_lib) return;
+  try {
+    await probeHost(record.model_lib);
+  } catch (error) {
+    throw new Error(
+      `cannot reach ${hostOf(record.model_lib)} for the model library (${error instanceof Error ? error.message : String(error)}).`,
+    );
+  }
+}
+
+interface LoadOptions {
+  hosts?: WeightHosts;
+  cacheBackend?: 'cache' | 'indexeddb';
+}
+
+let lastLoad: LoadOptions = {};
+
+async function load(model: string, options: LoadOptions = lastLoad): Promise<ChatEngine> {
+  lastLoad = options;
   if (engine && loadedModel === model) return engine;
   if (loading) return loading;
   loading = (async () => {
-    const host = await probeModelHost(model);
     const webllm = (await import('@mlc-ai/web-llm')) as unknown as {
       CreateMLCEngine: (
         model: string,
@@ -110,21 +129,30 @@ async function load(model: string): Promise<ChatEngine> {
           initProgressCallback?: (report: { progress: number; text: string }) => void;
         },
       ) => Promise<ChatEngine>;
-      prebuiltAppConfig?: { model_list: Array<Record<string, unknown>> };
-    };
-    // Point every artifact at the host that answered, instead of assuming the
-    // canonical one.
-    let appConfig: unknown;
-    if (host !== WEIGHT_HOSTS[0] && webllm.prebuiltAppConfig) {
-      const config = JSON.parse(JSON.stringify(webllm.prebuiltAppConfig)) as {
-        model_list: Array<Record<string, unknown>>;
+      prebuiltAppConfig?: {
+        model_list: ModelRecordLike[];
+        cacheBackend?: string;
+        [key: string]: unknown;
       };
-      config.model_list = config.model_list.map((entry) => ({
-        ...entry,
-        model: String(entry.model ?? '').replace(WEIGHT_HOSTS[0], host),
-      }));
-      appConfig = config;
-    }
+    };
+
+    // Follow the documented shape: keep the prebuilt entry (its VRAM hints,
+    // overrides and required features matter), rewrite only the two URLs.
+    const prebuilt = webllm.prebuiltAppConfig?.model_list?.find((entry) => entry.model_id === model);
+    const record = buildModelRecord(prebuilt, model, options.hosts ?? {});
+
+    await probeRecord(record);
+
+    // `appConfig` replaces the whole config, so carry over the rest of the
+    // prebuilt one and swap in our single record.
+    const appConfig = webllm.prebuiltAppConfig
+      ? {
+          ...webllm.prebuiltAppConfig,
+          model_list: [record],
+          cacheBackend: options.cacheBackend ?? webllm.prebuiltAppConfig.cacheBackend ?? 'cache',
+        }
+      : { model_list: [record], cacheBackend: options.cacheBackend ?? 'cache' };
+
     const created = await webllm.CreateMLCEngine(model, {
       appConfig,
       initProgressCallback: (report) => {
@@ -149,7 +177,10 @@ self.onmessage = async (event: MessageEvent<WorkerRequest>) => {
     if (typeof request.temperature === 'number') temperature = request.temperature;
     if (typeof request.maxTokens === 'number') maxTokens = request.maxTokens;
     try {
-      await load(request.model);
+      await load(request.model, {
+        hosts: { modelBase: request.modelBase, modelLibBase: request.modelLibBase },
+        cacheBackend: request.cacheBackend,
+      });
     } catch (error) {
       self.postMessage({
         type: 'error',
