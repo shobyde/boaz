@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.1 — 2026-11-23
+
+- The knowledge base indexes constants with the retriever's tokenizer, so a question word and the
+  constant it names actually meet ("sqlite" and "SQLite" both stem to the same token). They used two
+  different tokenizers, which silently broke term resolution for every word the stemmer touched.
+- 107 tests.
+
 ## 0.5.0 — 2026-11-23
 
 Grounding, conversation memory and tool reasoning: the three things that made the deterministic

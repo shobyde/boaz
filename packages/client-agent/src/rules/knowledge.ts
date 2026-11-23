@@ -10,6 +10,8 @@
  *     kb.query('projects_using(?P)', { assume: [['asked', 'Python 3.10+']] });
  */
 
+import { tokenize } from '../core/retriever.js';
+
 export type Term = string;
 export type FactRow = [string, ...string[]];
 
@@ -167,11 +169,9 @@ export class KnowledgeBase {
   }
 
   private indexConstant(constant: string): void {
-    const words = constant
-      .toLowerCase()
-      .split(/[^a-z0-9+#.]+/)
-      .filter((word) => word.length > 1 && !/^\d+$/.test(word));
-    for (const word of words) {
+    // The same tokenizer the retriever uses, or "sqlite" (stemmed to "sqlit")
+    // would never match the constant it came from.
+    for (const word of new Set(tokenize(constant))) {
       const list = this.vocabulary.get(word) ?? [];
       if (!list.includes(constant)) list.push(constant);
       this.vocabulary.set(word, list);
@@ -180,7 +180,8 @@ export class KnowledgeBase {
 
   /** Canonical constants whose words include the given token. */
   canonicalFor(token: string): string[] {
-    return this.vocabulary.get(token.toLowerCase()) ?? [];
+    const [stemmed] = tokenize(token);
+    return this.vocabulary.get(stemmed ?? token.toLowerCase()) ?? [];
   }
 
   /** Every declared row, in declaration order. */

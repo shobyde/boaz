@@ -68,6 +68,13 @@ describe('field scanner', () => {
     expect(scanner.scan(page).length).toBe(3);
   });
 
+  it('matches a constant through the retriever tokenizer', () => {
+    const kb = new KnowledgeBase({ facts: [fact('uses', 'readback', 'SQLite'), fact('uses', 'x', 'Python 3.10+')] });
+    expect(kb.canonicalFor('sqlite')).toEqual(['SQLite']);
+    expect(kb.canonicalFor('python')).toEqual(['Python 3.10+']);
+    expect(kb.canonicalFor('projects')).toEqual([]);
+  });
+
   it('only scans the kinds the question names', () => {
     const hits = createFieldScanner().scan(page, ['email']);
     expect(hits).toHaveLength(1);
