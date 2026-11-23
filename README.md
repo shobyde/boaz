@@ -11,8 +11,15 @@ Most "AI in your app" implementations stream the DOM to a server, pay per token,
 - **Every call is checked before it runs.** Ids must exist in the manifest, arguments must satisfy the JSON Schema, mutating actions pass a confirmation gate, and a turn is capped at three sequential calls.
 
 ```bash
-npm install client-agent
-npx client-agent init --skill   # writes the skill that keeps capabilities in sync
+npm install client-agent          # once the npm release runs; until then use the tarball below
+npx client-agent init --skill     # writes the skill that keeps capabilities in sync
+```
+
+Until the npm token is in place, every version is also attached to its GitHub release, which npm
+installs directly and which ships a prebuilt `dist/`:
+
+```bash
+npm install https://github.com/shobyde/client-agent/releases/download/v0.1.5/client-agent-0.1.5.tgz
 ```
 
 ## The pieces
@@ -221,6 +228,6 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.1.5`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Not yet published to npm.
+`0.1.5`. The core loop, extractor, CLI, and React bindings are deliberately small and covered by tests; the WebLLM adapter is the piece with the least runtime evidence, as noted above. Publishing is wired in `.github/workflows/release.yml` and runs on a tag once an `NPM_TOKEN` secret exists; until then the release tarball is the install path. It is already running in production on shobyde.com.
 
 MIT.

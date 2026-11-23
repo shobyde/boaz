@@ -1,0 +1,53 @@
+name: release
+
+# Publishes packages/client-agent to npm from a version tag, or on demand.
+# Needs a repository secret named NPM_TOKEN: an npm granular access token with
+# read and write on the client-agent package. Until it exists this workflow
+# fails at the publish step, and the GitHub release tarball remains the way to
+# install the package.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm --filter client-agent test
+
+      - name: Check that the tag matches the package version
+        run: |
+          pkg=$(node -p "require('./packages/client-agent/package.json').version")
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$pkg" != "$tag" ]; then
+            echo "tag $tag does not match package version $pkg"
+            exit 1
+          fi
+          echo "publishing $pkg"
+
+      - name: Publish
+        working-directory: packages/client-agent
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
