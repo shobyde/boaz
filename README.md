@@ -91,6 +91,34 @@ import { createLexicalEngine } from 'client-agent/core';
 
 Handlers register on mount, so an action declared for another screen is not callable until that screen exists. The runtime handles that: it navigates to `capability.route`, waits up to 2s for the handler, then runs it. `useRegisterCapability(capability)` inside a page component is the whole integration.
 
+## No React? The core is framework-free
+
+`client-agent/react` is a convenience, not the contract. shobyde.com runs the same package in a
+Vite page with no framework at all: it imports the generated manifest, registers the handlers, and
+renders its own panel.
+
+```js
+import manifest from 'client-agent:manifest';
+import { AgentRuntime, createLexicalEngine, registry } from 'client-agent/core';
+import { siteCapabilities } from './capabilities.js';
+
+for (const capability of siteCapabilities) registry.register(capability);
+
+const runtime = new AgentRuntime({
+  engine: createLexicalEngine({ capabilities: manifest.capabilities }),
+  capabilities: manifest.capabilities,   // what the model may choose from
+  registry,                              // what can actually run
+  getSnapshot: () => ({ currentRoute: location.hash || '#hero' }),
+  navigate: (route) => document.querySelector(route)?.scrollIntoView(),
+  dispatch: (event, payload) => handle(event, payload),
+});
+
+const { text, steps } = await runtime.send('open the printable resume');
+```
+
+Hash routes are supported for anchor navigation (`route: '#projects'`), and a `query` capability
+can return `{ answer }` to phrase its own reply when the keyword engine is doing the talking.
+
 ## What `verify` actually prints
 
 Real output, from the demo app in `apps/demo`:
