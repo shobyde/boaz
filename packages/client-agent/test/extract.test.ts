@@ -90,6 +90,46 @@ describe('scanSource', () => {
     expect(scanned.diagnostics[0]?.code).toBe('CAP006');
   });
 
+  it('extracts defineKnowledge declarations as knowledge capabilities', () => {
+    const scanned = scanSource(
+      `import { defineKnowledge } from 'client-agent/core';
+       export const fact = defineKnowledge({
+         id: 'knowledge.skills',
+         title: 'Skills',
+         description: 'The languages and tools Sho works in day to day.',
+         knowledge: 'Sho writes TypeScript, React and Python.',
+       });`,
+      'src/a.ts',
+    );
+    expect(scanned.diagnostics).toEqual([]);
+    expect(scanned.capabilities[0]).toMatchObject({
+      id: 'knowledge.skills',
+      kind: 'knowledge',
+      knowledge: 'Sho writes TypeScript, React and Python.',
+      hasHandler: false,
+    });
+  });
+
+  it('follows an import alias for defineKnowledge', () => {
+    const scanned = scanSource(
+      `import { defineKnowledge as fact } from 'client-agent/core';
+       export const c = fact({ id: 'k.a', title: 'A fact', description: 'Something true about this page.', knowledge: 'A is true.' });`,
+      'src/a.ts',
+    );
+    expect(scanned.diagnostics).toEqual([]);
+    expect(scanned.capabilities[0]?.kind).toBe('knowledge');
+  });
+
+  it('keeps defineCapability defaulting to action', () => {
+    const scanned = scanSource(
+      `import { defineCapability } from 'client-agent/core';
+       export const c = defineCapability({ id: 'a.b', title: 'Do a thing', description: 'Does the thing the visitor asked for.', handler: () => true });`,
+      'src/a.ts',
+    );
+    expect(scanned.diagnostics).toEqual([]);
+    expect(scanned.capabilities[0]?.kind).toBe('action');
+  });
+
   it('collects router paths from JSX and router configs', () => {
     const scanned = scanSource(
       `export const routes = [

@@ -47,7 +47,7 @@ export interface ExtractResult {
 }
 
 const ID_PATTERN = /^[a-z0-9][a-z0-9._-]*$/;
-const KINDS = new Set<CapabilityKind>(['route', 'action', 'query']);
+const KINDS = new Set<CapabilityKind>(['route', 'action', 'query', 'knowledge']);
 const READ_ONLY_VERB = /^(open|show|view|read|go|scroll|copy|print|download|expand|export|list|see|find|search|filter|sort)\b/i;
 const MUTATING =
   /\b(delete|remove|cancel|pay|purchase|subscribe|unsubscribe|upgrade|downgrade|update|save|clear|reset|archive|revoke|disconnect|transfer|deactivate|close)\b/i;
@@ -162,15 +162,19 @@ function collectConstants(sourceFile: ts.SourceFile): Map<string, ts.Node> {
   return consts;
 }
 
-function collectDefinitionNames(sourceFile: ts.SourceFile): Set<string> {
-  const names = new Set<string>();
+type DefinitionName = 'defineCapability' | 'defineKnowledge';
+
+function collectDefinitionNames(sourceFile: ts.SourceFile): Map<string, DefinitionName> {
+  const names = new Map<string, DefinitionName>();
   for (const statement of sourceFile.statements) {
     if (!ts.isImportDeclaration(statement) || !statement.importClause) continue;
     const bindings = statement.importClause.namedBindings;
     if (!bindings || !ts.isNamedImports(bindings)) continue;
     for (const element of bindings.elements) {
       const imported = (element.propertyName ?? element.name).text;
-      if (imported === 'defineCapability') names.add(element.name.text);
+      if (imported === 'defineCapability' || imported === 'defineKnowledge') {
+        names.set(element.name.text, imported);
+      }
     }
   }
   return names;
@@ -257,7 +261,7 @@ function validateMetadata(
   }
   const kind = capability.kind;
   if (typeof kind !== 'string' || !KINDS.has(kind as CapabilityKind)) {
-    diagnostic({ code: 'CAP009', severity: 'error', message: `kind must be route, action or query (got ${JSON.stringify(kind ?? null)})`, ...at });
+    diagnostic({ code: 'CAP009', severity: 'error', message: `kind must be route, action, query or knowledge (got ${JSON.stringify(kind ?? null)})`, ...at });
   }
   const title = typeof capability.title === 'string' ? capability.title.trim() : '';
   const description = typeof capability.description === 'string' ? capability.description.trim() : '';
@@ -309,11 +313,14 @@ export function scanSource(text: string, fileName: string): {
   const diagnostics: Diagnostic[] = [];
 
   const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && definitionNames.has(node.expression.text)) {
+    const definition = ts.isCallExpression(node) && ts.isIdentifier(node.expression)
+      ? definitionNames.get(node.expression.text)
+      : undefined;
+    if (definition && ts.isCallExpression(node)) {
       const position = lineOf(sourceFile, node, fileName);
       const [argument] = node.arguments;
       try {
-        if (!argument) throw new NotStatic('defineCapability() called without an argument');
+        if (!argument) throw new NotStatic(`${definition}() called without an argument`);
         const value = evaluate(argument, consts);
         if (value === null || typeof value !== 'object' || Array.isArray(value)) {
           throw new NotStatic('argument is not an object literal');
@@ -329,11 +336,12 @@ export function scanSource(text: string, fileName: string): {
             return ts.isShorthandPropertyAssignment(property) && property.name.text === 'handler';
           });
         const paramsSchema = validateSchema(record.paramsSchema, (d) => diagnostics.push(d), position);
-        validateMetadata({ ...record, paramsSchema }, position, (d) => diagnostics.push(d));
+        const kind = (record.kind as CapabilityKind) ?? (definition === 'defineKnowledge' ? 'knowledge' : 'action');
+        validateMetadata({ ...record, kind, paramsSchema }, position, (d) => diagnostics.push(d));
 
         const manifestCapability: ManifestCapability = {
           id: typeof record.id === 'string' ? record.id : '',
-          kind: (record.kind as CapabilityKind) ?? 'action',
+          kind,
           title: typeof record.title === 'string' ? record.title : '',
           description: typeof record.description === 'string' ? record.description : '',
         };
@@ -341,6 +349,7 @@ export function scanSource(text: string, fileName: string): {
           manifestCapability.keywords = record.keywords.filter((k): k is string => typeof k === 'string');
         }
         if (typeof record.route === 'string') manifestCapability.route = record.route;
+        if (typeof record.knowledge === 'string') manifestCapability.knowledge = record.knowledge;
         if (paramsSchema) manifestCapability.paramsSchema = paramsSchema;
         if (record.requiresConfirmation === true) manifestCapability.requiresConfirmation = true;
         capabilities.push({ ...manifestCapability, hasHandler, source: position });

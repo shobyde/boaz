@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.5 — 2026-11-23
+
+- The build-time scanner recognises `defineKnowledge()` and its import alias,
+  defaults those declarations to kind `knowledge`, and copies the `knowledge`
+  text into the manifest. 0.3.4 added the kind to the runtime and the
+  declaration helper, but the extractor still only looked for
+  `defineCapability`, so knowledge entries were silently missing from every
+  generated manifest and the lexical engine never saw them.
+- 85 tests.
+
 ## 0.3.0 — 2026-11-22
 
 - **`client-agent/chrome-ai`**: an engine over the browser's own on-device model
