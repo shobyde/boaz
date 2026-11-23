@@ -11,6 +11,9 @@ export interface LexicalEngineOptions {
 
 const EMAIL = /[^\s@<>()"']+@[^\s@<>()"']+\.[^\s@<>()"']+/;
 
+/** Verbs that ask for a place, not an explanation. */
+const NAVIGATE = /^(take me|go to|jump to|scroll to|scroll down to|bring me|navigate to)\b/i;
+
 function realUserMessages(request: EngineRequest): number[] {
   const indexes: number[] = [];
   request.messages.forEach((message, index) => {
@@ -170,6 +173,16 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       const second = ranked[1];
       const confident =
         top !== undefined && top.score >= threshold && (!second || top.score >= second.score * margin);
+      // "Take me to X" is a different question from "what is X": when the visitor
+      // asks for a place, the best route is the answer even if an action or query
+      // about the same thing scores just as high.
+      if (!confident && NAVIGATE.test(query)) {
+        const route = ranked.find(
+          (entry) => byId.get(entry.capability.id)?.kind === 'route' && entry.score >= threshold,
+        );
+        if (route) return { text: callTool(route.capability.id, {}) };
+      }
+
       if (!top || !confident) {
         // Conversational fallback: if several knowledge entries matched, stitch
         // them together instead of giving up.

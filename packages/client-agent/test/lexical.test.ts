@@ -71,6 +71,18 @@ describe('createLexicalEngine', () => {
     });
   });
 
+  it('prefers the route when the visitor asks for a place', async () => {
+    // Three capabilities about invoices can tie on score; "take me to" is a
+    // request for a destination, so the route wins without a margin contest.
+    const reply = await engine.complete(request('take me to billing'));
+    expect(parseModelOutput(reply.text)).toMatchObject({ kind: 'tool', capabilityId: 'billing.navigate' });
+  });
+
+  it('does not rewrite a controller request as navigation', async () => {
+    const reply = await engine.complete(request('show only the overdue invoices'));
+    expect(parseModelOutput(reply.text)).toMatchObject({ kind: 'tool', capabilityId: 'billing.filter_invoices' });
+  });
+
   it('fills an enum argument from the visitor words', async () => {
     const reply = await engine.complete(request('show only the overdue invoices'));
     expect(parseModelOutput(reply.text)).toEqual({

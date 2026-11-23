@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — 2026-11-23
+
+- `createLexicalEngine()` answers navigation requests by destination. "Take me to the projects"
+  used to lose a margin contest to "List projects" and "Show a project card" and come back as
+  "I'm not sure"; verbs like take me / go to / jump to / scroll to now resolve to the best route
+  that clears the threshold. Controller requests ("show only the overdue invoices") are untouched.
+- 88 tests.
+
 ## 0.4.0 — 2026-11-23
 
 Breaking: the model adapters are gone.
