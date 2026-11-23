@@ -152,6 +152,13 @@ describe('conversation memory', () => {
     expect(completion.text).toBe('readback and groundglass');
   });
 
+  it('does not repeat the last answer when the follow-up names an unknown term', async () => {
+    const engine = createRulesEngine({ knowledge: projects, answers: [projectsAnswer], capabilities: [] });
+    expect((await ask(engine, 'which projects use python?')).text).toBe('readback and groundglass');
+    const completion = await ask(engine, 'and cobol?');
+    expect(completion.text).not.toBe('readback and groundglass');
+  });
+
   it('does not carry over when memory is off', async () => {
     const engine = createRulesEngine({
       knowledge: projects,

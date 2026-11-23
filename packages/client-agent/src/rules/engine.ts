@@ -112,6 +112,12 @@ const FIELD = 'field';
 /** "and…", "what about…", "his…" and bare continuations lean on the last turn. */
 const FOLLOW_UP = /^(and|also|what about|how about|then|more|why)\b|^(his|her|their|its)\b/i;
 
+/** Words that carry no subject of their own: a query made only of these is an ellipsis. */
+const ELLIPSIS_WORDS = new Set([
+  'and', 'also', 'what', 'about', 'how', 'then', 'more', 'why', 'his', 'her', 'their', 'its',
+  'it', 'that', 'those', 'them', 'one', 'ones', 'please', 'tell', 'me', 'again', 'else', 'any',
+]);
+
 function callTool(id: string, args: Record<string, unknown>): string {
   return ['```json', JSON.stringify({ tool: id, arguments: args }), '```'].join('\n');
 }
@@ -314,10 +320,12 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
           if (!terms.includes(constant)) terms.push(constant);
         }
       }
-      // A continuation inherits what the previous turn was about: "and?" has no
-      // nouns of its own, and "and SQLite?" keeps the intent but swaps the term.
-      const effectiveTerms = terms.length === 0 && followUp ? memory.terms : terms;
-      const effectiveHits = hits.length === 0 && followUp ? memory.hits : hits;
+      // A continuation inherits the previous turn only when it has no subject of
+      // its own: "and?" does, "and SQLite?" names a new term and must not repeat
+      // the old answer if that term is unknown.
+      const ellipsis = followUp && tokenize(query).every((word) => ELLIPSIS_WORDS.has(word));
+      const effectiveTerms = terms.length === 0 && ellipsis ? memory.terms : terms;
+      const effectiveHits = hits.length === 0 && ellipsis ? memory.hits : hits;
 
       const assume: FactRow[] = [
         ...baseFacts,

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.2 — 2026-11-23
+
+- A follow-up that names a term the data does not have ("and SQLite?" when no stack lists it) no
+  longer repeats the previous answer. Carry-over now applies only to true ellipsis ("and?", "why?"),
+  where the query has no subject of its own.
+- 108 tests.
+
 ## 0.5.1 — 2026-11-23
 
 - The knowledge base indexes constants with the retriever's tokenizer, so a question word and the
