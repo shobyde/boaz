@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-11-22
+
+- A turn that ends in a surface returns an empty text, and the keyword engine
+  stops narrating after one, so the host renders the card without a redundant
+  sentence above it.
+
 ## 0.2.0 — 2026-11-22
 
 - **Grounding:** `AgentRuntimeOptions.readContext(query)` supplies page content,

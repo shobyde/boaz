@@ -140,6 +140,10 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
           const answer = readAnswer(payload);
           return { text: answer || 'I read that value.' };
         }
+        if (trace.includes('rendered a surface')) {
+          // The surface is the reply; the host renders it.
+          return { text: '' };
+        }
         if (trace.includes('ran successfully')) {
           // Name what ran, so the reply is not the same sentence every time.
           const ranId = /\[client-agent\] "([^"]+)" ran successfully/.exec(trace)?.[1];

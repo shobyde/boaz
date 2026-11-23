@@ -343,6 +343,8 @@ export class AgentRuntime {
   }
 
   private summarize(steps: TurnStep[], stoppedBy: TurnResult['stoppedBy']): string {
+    // A rendered surface is the answer. Adding a sentence on top of it is noise.
+    if (steps[steps.length - 1]?.type === 'surface') return '';
     const lastAction = [...steps].reverse().find((s) => s.type === 'action' || s.type === 'navigate');
     if (stoppedBy === 'max-tool-calls') {
       return lastAction

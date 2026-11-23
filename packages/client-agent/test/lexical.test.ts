@@ -151,6 +151,20 @@ describe('createLexicalEngine', () => {
     expect(reply.text).toBe('Done: Filter invoices by status.');
   });
 
+  it('stays quiet when a surface is the reply', async () => {
+    const reply = await engine.complete(
+      request('show me the hobnob card', [
+        { role: 'assistant', content: '{"tool":"projects.card","arguments":{"project":"hobnob"}}' },
+        {
+          role: 'user',
+          content:
+            '[client-agent] "projects.card" rendered a surface. Describe it in one sentence if the visitor still needs words.',
+        },
+      ]),
+    );
+    expect(reply.text).toBe('');
+  });
+
   it('reports the outcome instead of repeating the call', async () => {
     const reply = await engine.complete(
       request('take me to billing', [
