@@ -156,7 +156,7 @@ importers:
   packages/client-agent:
     dependencies:
       '@mlc-ai/web-llm':
-        specifier: '>=0.2.70'
+        specifier: ^0.2.89
         version: 0.2.89
       typescript:
         specifier: ^5.9.0
