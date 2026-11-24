@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.7.11 - 2026-11-24
+
+- Stated preferences as facts: `createPreferenceMemory({ preferences })` keeps what the visitor asked for
+  as a `prefers(<key>, <value>)` assertion, with the utterance that stated it and the order it arrived in.
+- The store is the honesty boundary. A host declares the keys and the values it can act on;
+  `record()` returns `null` for anything undeclared, so a host that cannot change its tone cannot look as
+  though it accepted a tone preference. `get()` reports the declaration's default until something is stated.
+- `facts()` returns the latest assertion per key, the shape a rule could join; `stated()` returns the
+  history, which is what a recap sentence needs. `reset(id)` returns one key to its default.
+- Ceiling: the store holds values, not phrasings. Recognising "keep it short" (and refusing "call me boss")
+  stays in the host, so every host writes its own cue table and a phrasing outside it is not claimed.
+
 ## 0.7.10 - 2026-11-24
 
 - Working memory with salience: `createWorkingMemory({ subjects, halfLife, minSalience, limit })` and
