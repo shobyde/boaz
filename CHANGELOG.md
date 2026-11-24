@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.4 — 2026-11-23
+
+- A rule that joins on `asked(?T)` gets a 1.4 boost when the question names a declared constant. "What's
+  built with Python?" and "any projects in python?" were losing to the plain project-list rule because
+  the verbose rule about listing had more keywords in common.
+- 115 tests.
+
 ## 0.6.3 — 2026-11-23
 
 - Narrow 0.6.2 to `much` and `many`. Treating `more`, `about`-style quantifiers as stopwords broke

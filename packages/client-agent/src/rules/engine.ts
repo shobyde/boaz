@@ -173,6 +173,19 @@ function lastUserMessage(request: EngineRequest): string {
   return users[users.length - 1]?.content ?? '';
 }
 
+/**
+ * A rule that joins on `asked(?T)` exists to answer "which X uses the Y the
+ * visitor named". When the question does name a declared constant, that rule is
+ * the right one even if a rule about the same nouns scores a little higher.
+ */
+function joinsAskedConstant(rule: AnswerRule, knowledge: KnowledgeBase): boolean {
+  const rel = rule.goal.split('(')[0]?.trim();
+  if (!rel) return false;
+  return knowledge.rules.some(
+    (candidate) => candidate.head.rel === rel && candidate.body.some((atom) => atom.rel === 'asked'),
+  );
+}
+
 function answerCapability(rule: AnswerRule): ManifestCapability {
   return {
     id: rule.id,
@@ -306,8 +319,20 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         .join(' ');
 
       const controllerRequest = CONTROLLER.test(query);
-      const [best] =
-        answers.length > 0 && !controllerRequest ? index.search(retrieval, { limit: 1, boost: false }) : [];
+      let best;
+      if (answers.length > 0 && !controllerRequest) {
+        const hits = index.search(retrieval, { limit: 3, boost: false });
+        const words = retrieval.split(/[^A-Za-z0-9+#.]+/).filter((word) => word.length > 1);
+        const namesConstant = words.some((word) => knowledge.canonicalFor(word).length > 0);
+        if (namesConstant) {
+          for (const hit of hits) {
+            const candidate = answers.find((answer) => answer.id === hit.capability.id);
+            if (candidate && joinsAskedConstant(candidate, knowledge)) hit.score *= 1.4;
+          }
+          hits.sort((a, b) => b.score - a.score);
+        }
+        [best] = hits;
+      }
       const rule = best ? answers.find((answer) => answer.id === best.capability.id) : undefined;
       const threshold = rule?.threshold ?? options.threshold ?? 1;
       const byScore = rule && best && best.score >= threshold ? rule : undefined;
