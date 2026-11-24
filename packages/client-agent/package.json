@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.6.7",
+  "version": "0.6.8",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",
@@ -40,6 +40,10 @@
     "./build": {
       "types": "./dist/build/index.d.ts",
       "import": "./dist/build/index.js"
+    },
+    "./probes": {
+      "types": "./dist/build/probes.d.ts",
+      "import": "./dist/build/probes.js"
     },
     "./package.json": "./package.json",
     "./dom": {

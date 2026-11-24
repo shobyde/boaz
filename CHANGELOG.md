@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.8 — 2026-11-23
+
+- `client-agent/probes` is its own entry point. `client-agent/build` re-exports
+  `generateProbes`, but importing it in a browser drags in the scanner and with
+  it `typescript`; the generator itself is pure and does not need either. The
+  shipped probe generator page imports this entry.
+
 ## 0.6.7 — 2026-11-23
 
 Coverage before anyone writes a probe by hand.
