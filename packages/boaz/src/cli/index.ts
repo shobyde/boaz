@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildManifest, extractCapabilities, type ExtractResult } from '../build/extract.js';
 import { formatDiagnostic, formatSummary, printCodes } from '../build/report.js';
-import { CLIENT_LLM_SKILL_MD } from './skill-template.js';
+import { BOAZ_SKILL_MD } from './skill-template.js';
 import { runAudit } from './audit.js';
 import { runBench } from './bench.js';
 import { generateProbes, serializeProbes } from '../build/probes.js';
@@ -17,17 +17,17 @@ interface Args {
   flags: Map<string, FlagValue>;
 }
 
-const HELP = `client-agent — declarative UI capabilities for an in-browser assistant
+const HELP = `boaz — declarative UI capabilities for an in-browser assistant
 
 Usage
-  client-agent verify [dir] [--strict] [--json] [--include <glob>] [--exclude <glob>]
-  client-agent manifest [dir] [--out <file>] [--check] [--include <glob>]
-  client-agent codes [CODE]
-  client-agent audit --probes <file> --module <file> [--json] [--quiet]
-  client-agent bench --probes <file> --module <file> [--json <out>] [--samples]
-  client-agent probes [dir] [--generate] [--out <file>] [--manifest <file>] [--force]
-  client-agent init [dir] --skill [--force]
-  client-agent verify --self-check <fixtures-dir>
+  boaz verify [dir] [--strict] [--json] [--include <glob>] [--exclude <glob>]
+  boaz manifest [dir] [--out <file>] [--check] [--include <glob>]
+  boaz codes [CODE]
+  boaz audit --probes <file> --module <file> [--json] [--quiet]
+  boaz bench --probes <file> --module <file> [--json <out>] [--samples]
+  boaz probes [dir] [--generate] [--out <file>] [--manifest <file>] [--force]
+  boaz init [dir] --skill [--force]
+  boaz verify --self-check <fixtures-dir>
 
 Commands
   verify     Scan source for defineCapability() declarations and report problems.
@@ -174,7 +174,7 @@ async function commandVerify(args: Args): Promise<number> {
 
   const failed = errors.length > 0 || (strict && warnings.length > 0);
   if (failed) {
-    process.stdout.write(`\nRun \`client-agent codes\` to see what each code means.\n`);
+    process.stdout.write(`\nRun \`boaz codes\` to see what each code means.\n`);
     return 1;
   }
   return 0;
@@ -193,11 +193,11 @@ async function commandManifest(args: Args): Promise<number> {
     try {
       existing = await fs.readFile(outPath, 'utf8');
     } catch {
-      process.stdout.write(`missing ${outPath}; run \`client-agent manifest\`\n`);
+      process.stdout.write(`missing ${outPath}; run \`boaz manifest\`\n`);
       return 1;
     }
     if (existing !== serialized) {
-      process.stdout.write(`${outPath} is out of date; re-run \`client-agent manifest\`\n`);
+      process.stdout.write(`${outPath} is out of date; re-run \`boaz manifest\`\n`);
       return 1;
     }
     process.stdout.write(`${outPath} is up to date (${manifest.capabilities.length} capabilities)\n`);
@@ -209,7 +209,7 @@ async function commandManifest(args: Args): Promise<number> {
     `wrote ${outPath} (${manifest.capabilities.length} capabilities, ${serialized.length} bytes)\n`,
   );
   if (result.diagnostics.some((d) => d.severity === 'error')) {
-    process.stdout.write('warning: manifest written despite errors; run `client-agent verify`\n');
+    process.stdout.write('warning: manifest written despite errors; run `boaz verify`\n');
     return 1;
   }
   return 0;
@@ -287,10 +287,10 @@ async function runSelfCheck(root: string): Promise<number> {
 async function commandInit(args: Args): Promise<number> {
   const dir = path.resolve(args.positionals[0] ?? '.');
   if (!args.flags.has('skill')) {
-    process.stdout.write('init: pass --skill to write .agent/skills/client-llm-capabilities.md\n');
+    process.stdout.write('init: pass --skill to write .agent/skills/boaz-capabilities.md\n');
     return 1;
   }
-  const target = path.join(dir, '.agent/skills/client-llm-capabilities.md');
+  const target = path.join(dir, '.agent/skills/boaz-capabilities.md');
   const exists = await fs
     .access(target)
     .then(() => true)
@@ -300,7 +300,7 @@ async function commandInit(args: Args): Promise<number> {
     return 1;
   }
   await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.writeFile(target, CLIENT_LLM_SKILL_MD);
+  await fs.writeFile(target, BOAZ_SKILL_MD);
   process.stdout.write(`wrote ${target}\n`);
   process.stdout.write('Next: point your agent loader (AGENTS.md, .cursor/rules, CLAUDE.md) at that file.\n');
   return 0;
@@ -321,7 +321,7 @@ async function commandProbes(args: Args): Promise<number> {
     return 2;
   }
   if (!Array.isArray(manifest.capabilities)) {
-    process.stderr.write(`probes: ${manifestPath} has no capabilities array; run \`client-agent manifest\` first\n`);
+    process.stderr.write(`probes: ${manifestPath} has no capabilities array; run \`boaz manifest\` first\n`);
     return 2;
   }
 
@@ -356,7 +356,7 @@ async function commandProbes(args: Args): Promise<number> {
     process.stdout.write(`\n${result.uncovered.length} capability/capabilities with no probe:\n`);
     for (const gap of result.uncovered) process.stdout.write(`  ${gap.id} — ${gap.reason}\n`);
   }
-  process.stdout.write(`\nNext: client-agent audit --probes ${outPath} --module <agent-setup.mjs>\n`);
+  process.stdout.write(`\nNext: boaz audit --probes ${outPath} --module <agent-setup.mjs>\n`);
   return 0;
 }
 

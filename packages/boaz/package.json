@@ -1,14 +1,14 @@
 {
-  "name": "client-agent",
-  "version": "0.6.10",
+  "name": "boaz",
+  "version": "0.7.0",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",
   "author": "sho byde <shobyde@gmail.com>",
-  "homepage": "https://github.com/shobyde/client-agent",
+  "homepage": "https://github.com/shobyde/boaz",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shobyde/client-agent.git"
+    "url": "git+https://github.com/shobyde/boaz.git"
   },
   "keywords": [
     "agent",
@@ -18,7 +18,10 @@
     "knowledge-base",
     "datalog",
     "rules",
-    "retrieval"
+    "retrieval",
+    "deterministic",
+    "no-llm",
+    "provenance"
   ],
   "exports": {
     ".": {
@@ -60,7 +63,7 @@
     }
   },
   "bin": {
-    "client-agent": "./dist/cli/index.js"
+    "boaz": "./dist/cli/index.js"
   },
   "files": [
     "dist",
@@ -72,7 +75,8 @@
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "prepare": "tsc -p tsconfig.build.json"
+    "prepare": "tsc -p tsconfig.build.json",
+    "prepack": "cp ../../README.md ../../LICENSE ."
   },
   "dependencies": {
     "typescript": "^5.9.0"

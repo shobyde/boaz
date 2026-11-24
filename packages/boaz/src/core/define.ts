@@ -71,7 +71,7 @@ export function defineCapability<TParams = Record<string, unknown>, TResult = un
     // Not fatal: the schema is still usable, but the runtime cannot enforce
     // these keywords, so say so loudly instead of silently weakening the gate.
     console.warn(
-      `[client-agent] capability "${id}" uses schema keywords the runtime does not enforce: ${unsupported.join(', ')}. ` +
+      `[boaz] capability "${id}" uses schema keywords the runtime does not enforce: ${unsupported.join(', ')}. ` +
         `Arguments matching them will not be rejected.`,
     );
   }

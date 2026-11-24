@@ -2,7 +2,7 @@ name: release
 
 # Cuts a GitHub release for every version tag, with the tarball the site installs
 # attached, and publishes to npm once an NPM_TOKEN secret exists (a granular npm
-# access token with read and write on the client-agent package). Without the
+# access token with read and write on the boaz package). Without the
 # token the npm step is skipped instead of failing, so the tag still produces a
 # green release and an installable tarball.
 
@@ -34,11 +34,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - run: pnpm --filter client-agent test
+      - run: pnpm --filter boaz test
 
       - name: Check that the tag matches the package version
         run: |
-          pkg=$(node -p "require('./packages/client-agent/package.json').version")
+          pkg=$(node -p "require('./packages/boaz/package.json').version")
           tag="${GITHUB_REF_NAME#v}"
           if [ "$GITHUB_REF_TYPE" = "tag" ] && [ "$pkg" != "$tag" ]; then
             echo "tag $tag does not match package version $pkg"
@@ -48,12 +48,12 @@ jobs:
 
       - name: Pack the tarball the site installs
         run: |
-          cd packages/client-agent
+          cd packages/boaz
           npm pack --pack-destination "$GITHUB_WORKSPACE"
-          ls -l "$GITHUB_WORKSPACE"/client-agent-*.tgz
+          ls -l "$GITHUB_WORKSPACE"/boaz-*.tgz
 
       - name: Publish to npm
-        working-directory: packages/client-agent
+        working-directory: packages/boaz
         run: |
           if [ -z "$NODE_AUTH_TOKEN" ]; then
             echo "No NPM_TOKEN secret. Skipping npm publish: the tarball on the GitHub release is the install path."
@@ -69,10 +69,10 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="$GITHUB_REF_NAME"
-          tgz=$(ls client-agent-*.tgz)
+          tgz=$(ls boaz-*.tgz)
           echo "attaching $tgz to $tag"
           if gh release view "$tag" > /dev/null 2>&1; then
             gh release upload "$tag" "$tgz" --clobber
           else
-            gh release create "$tag" "$tgz" --title "client-agent ${tag#v}" --generate-notes
+            gh release create "$tag" "$tgz" --title "boaz ${tag#v}" --generate-notes
           fi

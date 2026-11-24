@@ -1,4 +1,4 @@
-import { defineCapability } from 'client-agent/core';
+import { defineCapability } from 'boaz/core';
 
 export const openBilling = defineCapability({
   id: 'billing.navigate',

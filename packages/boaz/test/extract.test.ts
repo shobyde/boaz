@@ -32,7 +32,7 @@ describe('glob matcher', () => {
 describe('scanSource', () => {
   it('extracts metadata and omits the handler body', () => {
     const scanned = scanSource(
-      `import { defineCapability } from 'client-agent/core';
+      `import { defineCapability } from 'boaz/core';
        const STATUSES = ['paid', 'open'] as const;
        export const cap = defineCapability({
          id: 'billing.filter',
@@ -61,7 +61,7 @@ describe('scanSource', () => {
 
   it('follows an import alias for defineCapability', () => {
     const scanned = scanSource(
-      `import { defineCapability as cap } from 'client-agent/core';
+      `import { defineCapability as cap } from 'boaz/core';
        export const c = cap({ id: 'a.b', kind: 'route', title: 'A B', description: 'Opens the A page so the visitor can see B.', route: '/b' });`,
       'src/a.ts',
     );
@@ -71,7 +71,7 @@ describe('scanSource', () => {
 
   it('accepts hash routes, which single-page sites need', () => {
     const scanned = scanSource(
-      `import { defineCapability } from 'client-agent/core';
+      `import { defineCapability } from 'boaz/core';
        export const c = defineCapability({ id: 'site.projects', kind: 'route', title: 'Projects', description: 'Takes the visitor to the projects section of the page.', route: '#projects' });`,
       'src/a.js',
     );
@@ -81,7 +81,7 @@ describe('scanSource', () => {
 
   it('reports declarations that cannot be read statically', () => {
     const scanned = scanSource(
-      `import { defineCapability } from 'client-agent/core';
+      `import { defineCapability } from 'boaz/core';
        import { ROUTES } from './routes';
        export const c = defineCapability({ id: 'a.b', kind: 'route', title: 'A B', description: 'Opens the A page so the visitor can see B.', route: ROUTES.b });`,
       'src/a.ts',
@@ -92,7 +92,7 @@ describe('scanSource', () => {
 
   it('extracts defineKnowledge declarations as knowledge capabilities', () => {
     const scanned = scanSource(
-      `import { defineKnowledge } from 'client-agent/core';
+      `import { defineKnowledge } from 'boaz/core';
        export const fact = defineKnowledge({
          id: 'knowledge.skills',
          title: 'Skills',
@@ -112,7 +112,7 @@ describe('scanSource', () => {
 
   it('follows an import alias for defineKnowledge', () => {
     const scanned = scanSource(
-      `import { defineKnowledge as fact } from 'client-agent/core';
+      `import { defineKnowledge as fact } from 'boaz/core';
        export const c = fact({ id: 'k.a', title: 'A fact', description: 'Something true about this page.', knowledge: 'A is true.' });`,
       'src/a.ts',
     );
@@ -122,7 +122,7 @@ describe('scanSource', () => {
 
   it('keeps defineCapability defaulting to action', () => {
     const scanned = scanSource(
-      `import { defineCapability } from 'client-agent/core';
+      `import { defineCapability } from 'boaz/core';
        export const c = defineCapability({ id: 'a.b', title: 'Do a thing', description: 'Does the thing the visitor asked for.', handler: () => true });`,
       'src/a.ts',
     );
@@ -132,7 +132,7 @@ describe('scanSource', () => {
 
   it('folds string concatenation in metadata', () => {
     const scanned = scanSource(
-      `import { defineKnowledge } from 'client-agent/core';
+      `import { defineKnowledge } from 'boaz/core';
        export const fact = defineKnowledge({
          id: 'k.prose',
          title: 'Prose',

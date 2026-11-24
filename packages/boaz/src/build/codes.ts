@@ -9,7 +9,7 @@ export interface DiagnosticCode {
 
 /**
  * The diagnostic contract. Codes are stable: they appear in CI output, in
- * `client-agent verify --json`, and in the self-check corpus, so a rule can be
+ * `boaz verify --json`, and in the self-check corpus, so a rule can be
  * referenced without pasting prose.
  */
 export const DIAGNOSTIC_CODES: DiagnosticCode[] = [

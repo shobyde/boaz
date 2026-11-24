@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import manifest from 'client-agent:manifest';
-import { type ManifestCapability } from 'client-agent/core';
-import { KnowledgeBase, createRulesEngine, fact } from 'client-agent/rules';
-import { AgentProvider } from 'client-agent/react';
+import manifest from 'boaz:manifest';
+import { type ManifestCapability } from 'boaz/core';
+import { KnowledgeBase, createRulesEngine, fact } from 'boaz/rules';
+import { AgentProvider } from 'boaz/react';
 import { Layout } from './shell/Layout.js';
 import { Assistant } from './shell/Assistant.js';
 import { Dashboard } from './pages/Dashboard.js';

@@ -116,7 +116,7 @@ describe('createLexicalEngine', () => {
     const reply = await engine.complete(
       request('how many invoices are open?', [
         { role: 'assistant', content: '{"tool":"billing.count","arguments":{}}' },
-        { role: 'user', content: '[client-agent] Query "billing.count" returned {"openInvoices":3,"overdueInvoices":2}.' },
+        { role: 'user', content: '[boaz] Query "billing.count" returned {"openInvoices":3,"overdueInvoices":2}.' },
       ]),
     );
     expect(reply.text).toBe('Right now: open invoices 3, overdue invoices 2.');
@@ -129,7 +129,7 @@ describe('createLexicalEngine', () => {
         {
           role: 'user',
           content:
-            '[client-agent] Query "profile.summary" returned {"answer":"Sho is an engineering manager and IC at Conversica.","years":"12+"}.',
+            '[boaz] Query "profile.summary" returned {"answer":"Sho is an engineering manager and IC at Conversica.","years":"12+"}.',
         },
       ]),
     );
@@ -141,7 +141,7 @@ describe('createLexicalEngine', () => {
     const reply = await engine.complete({
       messages: [
         { role: 'user', content: 'list projects' },
-        { role: 'user', content: `[client-agent] Query "projects.list" returned ${JSON.stringify(payload)}.` },
+        { role: 'user', content: `[boaz] Query "projects.list" returned ${JSON.stringify(payload)}.` },
       ],
       tools: [],
     });
@@ -154,7 +154,7 @@ describe('createLexicalEngine', () => {
     const reply = await engine.complete({
       messages: [
         { role: 'user', content: 'which projects has he built?' },
-        { role: 'user', content: `[client-agent] Query "projects.list" returned ${clipped}.` },
+        { role: 'user', content: `[boaz] Query "projects.list" returned ${clipped}.` },
       ],
       tools: [],
     });
@@ -167,7 +167,7 @@ describe('createLexicalEngine', () => {
     const reply = await engine.complete({
       messages: [
         { role: 'user', content: 'how many posts?' },
-        { role: 'user', content: '[client-agent] Query "blog.stats" returned {"posts":58…' },
+        { role: 'user', content: '[boaz] Query "blog.stats" returned {"posts":58…' },
       ],
       observations: { 'blog.stats': { answer: '58 posts are published.' } },
       tools: [],
@@ -182,7 +182,7 @@ describe('createLexicalEngine', () => {
         {
           role: 'user',
           content:
-            '[client-agent] Query "profile.summary" returned {"answer":"Sho is an engineering manager. He has been at Conversica since Jul 2021.","years":"12+"}.',
+            '[boaz] Query "profile.summary" returned {"answer":"Sho is an engineering manager. He has been at Conversica since Jul 2021.","years":"12+"}.',
         },
       ]),
     );
@@ -195,7 +195,7 @@ describe('createLexicalEngine', () => {
         { role: 'assistant', content: '{"tool":"billing.filter_invoices","arguments":{"status":"paid"}}' },
         {
           role: 'user',
-          content: '[client-agent] "billing.filter_invoices" ran successfully and returned {"appliedFilter":"paid"}.',
+          content: '[boaz] "billing.filter_invoices" ran successfully and returned {"appliedFilter":"paid"}.',
         },
       ]),
     );
@@ -209,7 +209,7 @@ describe('createLexicalEngine', () => {
         {
           role: 'user',
           content:
-            '[client-agent] "projects.card" rendered a surface. Describe it in one sentence if the visitor still needs words.',
+            '[boaz] "projects.card" rendered a surface. Describe it in one sentence if the visitor still needs words.',
         },
       ]),
     );
@@ -220,7 +220,7 @@ describe('createLexicalEngine', () => {
     const reply = await engine.complete(
       request('take me to billing', [
         { role: 'assistant', content: '{"tool":"billing.navigate","arguments":{}}' },
-        { role: 'user', content: '[client-agent] Navigation succeeded. The visitor is now on /settings/billing.' },
+        { role: 'user', content: '[boaz] Navigation succeeded. The visitor is now on /settings/billing.' },
       ]),
     );
     expect(parseModelOutput(reply.text).kind).toBe('text');

@@ -1,7 +1,7 @@
 /// <reference types="vite/client" />
 
-declare module 'client-agent:manifest' {
-  import type { AgentManifest } from 'client-agent/core';
+declare module 'boaz:manifest' {
+  import type { AgentManifest } from 'boaz/core';
   const manifest: AgentManifest;
   export default manifest;
 }

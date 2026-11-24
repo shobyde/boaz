@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.0 — 2026-11-25
+
+- Renamed from `client-agent` to `boaz`. The name is the record: in Ruth 4 the transaction
+  happens at the gate before witnesses, and in Ruth 2:11 the answer comes from what was
+  reported, not from a guess.
+- Breaking for consumers: the package name, the `bin` (`boaz` instead of `client-agent`), the
+  virtual module id (`boaz:manifest`), the dev manifest directory (`.boaz/agent-manifest.json`)
+  and the shipped consumer skill (`.agent/skills/boaz-capabilities.md`).
+- No API changes. `boaz` resolves the same entry points (`core`, `rules`, `vite`, `react`, `dom`,
+  `build`, `probes`, `extract`), and the transcript marker the loop and engines exchange is now
+  `[boaz]`.
+- `prepack` copies the repo README and LICENSE into the package so the npm page is not blank.
+
 ## 0.6.10 — 2026-11-24
 
 - `analyzeQuestion()` fills `slots.exclude`: the declared subjects inside a
@@ -20,7 +33,7 @@
 
 ## 0.6.9 — 2026-11-24
 
-- `analyzeQuestion(query, { subjects, attributes })` in `client-agent/core`
+- `analyzeQuestion(query, { subjects, attributes })` in `boaz/core`
   classifies a question's shape (`who`, `what`, `where`, `when`, `how-many`,
   `which`, `why`, `compare`, `unknown`) from ordered cue patterns, and fills the
   slots a router acts on: the declared subjects it names (matched through
@@ -38,7 +51,7 @@
 
 ## 0.6.8 — 2026-11-23
 
-- `client-agent/probes` is its own entry point. `client-agent/build` re-exports
+- `boaz/probes` is its own entry point. `boaz/build` re-exports
   `generateProbes`, but importing it in a browser drags in the scanner and with
   it `typescript`; the generator itself is pure and does not need either. The
   shipped probe generator page imports this entry.
@@ -47,7 +60,7 @@
 
 Coverage before anyone writes a probe by hand.
 
-- `client-agent probes --generate --manifest <file>` turns a manifest into
+- `boaz probes --generate --manifest <file>` turns a manifest into
   `probes.generated.json`: one question per capability title and keyword, each
   expecting the capability it came from and grouped under it as an `intent`, so
   `audit` runs immediately and `bench` can score the copy once `must` facts are
@@ -62,17 +75,17 @@ Coverage before anyone writes a probe by hand.
 - A capability with required parameters is reported with `needsArgs` instead of
   guessed: a phrase names what to open, not which one.
 - `generateProbes`, `serializeProbes` and `normalizePhrase` are exported from
-  `client-agent/build`, so a browser can generate the same file.
+  `boaz/build`, so a browser can generate the same file.
 - 135 tests.
 
 ## 0.6.6 — 2026-11-23
 
 Testing comes with the package.
 
-- `client-agent audit --probes <file> --module <file>`: ask every probe, report the engine's own decision
+- `boaz audit --probes <file> --module <file>`: ask every probe, report the engine's own decision
   (the rule that planned a tool call, the capability that ran, the knowledge paragraph quoted), exit 1 on a
   miss. `--json` for CI.
-- `client-agent bench --probes <file> --module <file> [--samples]`: fidelity, paraphrase similarity with the
+- `boaz bench --probes <file> --module <file> [--samples]`: fidelity, paraphrase similarity with the
   facts masked, opener variety, length spread, stability. Only intents with a `must` list are scored.
 - `agent-setup.mjs` contract: `createEngine()` plus optional `runCapability`, `answers`, `capabilities`.
   `runCapability` is what lets a rule that reads a tool answer with a sentence in the harness.
@@ -210,7 +223,7 @@ Testing comes with the package.
 Grounding, conversation memory and tool reasoning: the three things that made the deterministic
 engine feel narrow.
 
-- **`client-agent/extract`**: `createFieldScanner()` reads email / LinkedIn / URL / phone out of text
+- **`boaz/extract`**: `createFieldScanner()` reads email / LinkedIn / URL / phone out of text
   the host already has, with a sentence of evidence. `requestedFields(query)` decides when a question
   is asking for one. This is the fallback for values nobody declared.
 - **Grounding in the rules engine**: `grounding.read(query)` supplies page text; matched fields
@@ -262,10 +275,10 @@ engine feel narrow.
 
 Breaking: the model adapters are gone.
 
-- **Removed** `client-agent/webllm`, `client-agent/webllm/worker`, `client-agent/chrome-ai`, the
+- **Removed** `boaz/webllm`, `boaz/webllm/worker`, `boaz/chrome-ai`, the
   `@mlc-ai/web-llm` peer dependency and the demo worker. No download, no WebGPU requirement, no
   Prompt API. A visitor gets an answer on any browser.
-- **New `client-agent/rules`**: `KnowledgeBase` holds facts and Datalog rules
+- **New `boaz/rules`**: `KnowledgeBase` holds facts and Datalog rules
   (`head(?X) :- body(?X, ?Y), asked(?Y)`), evaluates them with scoped per-query assumptions, a
   depth limit and deduped solutions.
 - **`createRulesEngine()`** picks an answer rule by BM25 over its title and keywords, runs the goal,
@@ -297,7 +310,7 @@ Breaking: the model adapters are gone.
 
 ## 0.3.0 — 2026-11-22
 
-- **`client-agent/chrome-ai`**: an engine over the browser's own on-device model
+- **`boaz/chrome-ai`**: an engine over the browser's own on-device model
   (Chrome's Prompt API). `detectChromeAI()` reports available / downloadable /
   downloading / unavailable / unsupported, `createChromeAIEngine().prepare()`
   fetches the model if the browser has to, and `complete()` flattens the
@@ -346,7 +359,7 @@ Breaking: the model adapters are gone.
   docs, or a transcript for the turn; `buildSystemPrompt` carries it under a
   separate token budget (`contextBudgetTokens`, default 700) and tells the model
   to offer to navigate when the answer lives in a section.
-- **`client-agent/dom`:** `createDomContextReader({ sections })` turns visible
+- **`boaz/dom`:** `createDomContextReader({ sections })` turns visible
   sections into labelled, budgeted text, ranked by the visitor's words. Reads
   `innerText` in a browser and walks the tree where it does not exist.
 - **Declarative surfaces:** a handler may return `{ surface: [...] }`; the loop
@@ -392,9 +405,9 @@ Breaking: the model adapters are gone.
 
 First cut of the package and the demo.
 
-- `client-agent/core`: `defineCapability`, registry with late registration, JSON Schema subset validator, BM25 retrieval with route boost, prompt assembly with a token budget, tool-call parser, execution loop (schema retry, confirmation gate, step cap, navigate-then-wait), deterministic lexical engine.
-- `client-agent/build` + `client-agent/cli`: TypeScript-AST extraction of literal declarations, deterministic `agent-manifest.json`, 10 diagnostic codes, `verify` / `manifest` / `codes` / `init --skill`, and a self-check runner over 9 fixtures.
-- `client-agent/vite`: build plugin emitting the manifest plus a `client-agent:manifest` virtual module, with a dev watcher.
-- `client-agent/react`: `<AgentProvider>`, `useAgentChat`, `useRegisterCapability`.
-- `client-agent/webllm`: WebGPU worker, engine bridge with progress and lazy load, `createAutoEngine` fallback.
+- `boaz/core`: `defineCapability`, registry with late registration, JSON Schema subset validator, BM25 retrieval with route boost, prompt assembly with a token budget, tool-call parser, execution loop (schema retry, confirmation gate, step cap, navigate-then-wait), deterministic lexical engine.
+- `boaz/build` + `boaz/cli`: TypeScript-AST extraction of literal declarations, deterministic `agent-manifest.json`, 10 diagnostic codes, `verify` / `manifest` / `codes` / `init --skill`, and a self-check runner over 9 fixtures.
+- `boaz/vite`: build plugin emitting the manifest plus a `boaz:manifest` virtual module, with a dev watcher.
+- `boaz/react`: `<AgentProvider>`, `useAgentChat`, `useRegisterCapability`.
+- `boaz/webllm`: WebGPU worker, engine bridge with progress and lazy load, `createAutoEngine` fallback.
 - `apps/demo`: Ledger invoices app, five routes, twelve capabilities, keyword and on-device modes.

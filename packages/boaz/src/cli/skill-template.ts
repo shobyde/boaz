@@ -1,11 +1,11 @@
-export const CLIENT_LLM_SKILL_MD = `---
-name: client-llm-capabilities
-description: Use when adding or changing a route, control, answer rule, or reply copy in an app with the client-agent assistant. Declares capabilities, then proves the answers are routed and readable.
+export const BOAZ_SKILL_MD = `---
+name: boaz-capabilities
+description: Use when adding or changing a route, control, answer rule, or reply copy in an app with the boaz assistant. Declares capabilities, then proves the answers are routed and readable.
 ---
 
-# client-agent: capabilities, answers and proof
+# boaz: capabilities, answers and proof
 
-This repository ships an in-browser assistant (\`client-agent\`). It has no model:
+This repository ships an in-browser assistant (\`boaz\`). It has no model:
 it answers from the build-time capability manifest, from facts and rules your app
 declares, and from the page text. It cannot read your source and it cannot see
 the DOM. A feature without a capability declaration is invisible to it, and a
@@ -32,7 +32,7 @@ Declare it in a \`capabilities.ts\` next to the feature, not in a central file.
 Central files rot; co-located ones get updated with the feature.
 
 \`\`\`ts
-import { defineCapability } from 'client-agent/core';
+import { defineCapability } from 'boaz/core';
 
 export const openInvoices = defineCapability({
   id: 'billing.open_invoices',
@@ -169,7 +169,7 @@ intents with a \`must\` list are scored — a route or action has no copy to com
 \`\`\`js
 // agent-setup.mjs
 import manifest from './agent-manifest.json' with { type: 'json' };
-import { createRulesEngine } from 'client-agent/rules';
+import { createRulesEngine } from 'boaz/rules';
 
 export const capabilities = manifest.capabilities;
 export const answers = /* your rules */ [];
@@ -186,8 +186,8 @@ export function createEngine() {
 **Run them:**
 
 \`\`\`bash
-npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
-npx client-agent bench --probes agent-probes.json --module agent-setup.mjs --samples
+npx boaz audit --probes agent-probes.json --module agent-setup.mjs
+npx boaz bench --probes agent-probes.json --module agent-setup.mjs --samples
 \`\`\`
 
 - \`audit\` prints one line per miss — expected id, what actually ran — and exits 1.
@@ -216,7 +216,7 @@ say the answers read well.
 **No probe file yet?** Generate a starting one from the manifest:
 
 \`\`\`bash
-npx client-agent probes --generate --manifest dist/agent-manifest.json
+npx boaz probes --generate --manifest dist/agent-manifest.json
 \`\`\`
 
 It writes \`probes.generated.json\` with one question per capability title and
@@ -232,9 +232,9 @@ answer rule took over.
 ## Done means
 
 \`\`\`bash
-npx client-agent verify
-npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
-npx client-agent bench --probes agent-probes.json --module agent-setup.mjs
+npx boaz verify
+npx boaz audit --probes agent-probes.json --module agent-setup.mjs
+npx boaz bench --probes agent-probes.json --module agent-setup.mjs
 \`\`\`
 
 All three exit 0. If a new route is intentionally invisible to the assistant, say

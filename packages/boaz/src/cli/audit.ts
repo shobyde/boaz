@@ -1,4 +1,4 @@
-// client-agent audit — does each question reach what it should?
+// boaz audit — does each question reach what it should?
 //
 // One probe file, one engine, one line per question. Exit 1 when a question goes
 // somewhere else, so it can gate a deploy or a pull request.

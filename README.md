@@ -1,6 +1,8 @@
-# client-agent
+# boaz
 
 **Ground a browser assistant in your app's real routes, actions and data — with no model to download, no API key, and every sentence traceable to a fact.**
+
+**Why the name.** In Ruth 4, Boaz settles a transaction at the city gate, in front of the elders, where the record is kept: "you are witnesses this day." In Ruth 2:11 he answers a question from what he had been told, not from what he could guess. That is the contract this package keeps, so the name is a reminder rather than a metaphor: answers come from the record, and changes happen where they can be seen.
 
 ![The Ledger demo: an invoice table filtered by the assistant, with the transcript showing the call it made](docs/media/billing-filter.png)
 
@@ -12,29 +14,29 @@ Most "AI in your app" implementations stream the DOM to a server, pay per token,
 - **Replies can stream, with provenance.** `streaming: { chunkChars, paceMs }` emits `delta` events on the same channel as tool steps, and a rule answer carries the goal, the terms it matched and the rule it applied.
 
 ```bash
-npm install client-agent          # once the npm release runs; until then use the tarball below
-npx client-agent init --skill     # writes the skill that keeps capabilities in sync
-npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
-npx client-agent bench --probes agent-probes.json --module agent-setup.mjs --samples
+npm install boaz          # once the npm release runs; until then use the tarball below
+npx boaz init --skill     # writes the skill that keeps capabilities in sync
+npx boaz audit --probes agent-probes.json --module agent-setup.mjs
+npx boaz bench --probes agent-probes.json --module agent-setup.mjs --samples
 ```
 
 Until the npm token is in place, every version is also attached to its GitHub release, which npm
 installs directly and which ships a prebuilt `dist/`:
 
 ```bash
-npm install https://github.com/shobyde/client-agent/releases/download/v0.4.0/client-agent-0.4.0.tgz
+npm install https://github.com/shobyde/boaz/releases/download/v0.7.0/boaz-0.7.0.tgz
 ```
 
 ## The pieces
 
 | Subpath | What it is |
 | --- | --- |
-| `client-agent/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic keyword engine |
-| `client-agent/rules` | `KnowledgeBase` (facts + Datalog rules), `createRulesEngine()`, and the answer-rule contract that turns solutions into replies |
-| `client-agent/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
-| `client-agent/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
-| `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
-| `client-agent/cli` | `verify`, `manifest`, `codes`, `audit`, `bench`, `init --skill`, and a self-check corpus runner |
+| `boaz/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic keyword engine |
+| `boaz/rules` | `KnowledgeBase` (facts + Datalog rules), `createRulesEngine()`, and the answer-rule contract that turns solutions into replies |
+| `boaz/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
+| `boaz/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
+| `boaz/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
+| `boaz/cli` | `verify`, `manifest`, `codes`, `audit`, `bench`, `init --skill`, and a self-check corpus runner |
 
 One package, six entry points. `react` and `vite` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
 
@@ -43,7 +45,7 @@ One package, six entry points. `react` and `vite` are optional peers, so install
 Capabilities live next to the feature that owns the behaviour, not in a central file that rots.
 
 ```ts
-import { defineCapability } from 'client-agent/core';
+import { defineCapability } from 'boaz/core';
 
 export const filterInvoices = defineCapability({
   id: 'billing.filter_invoices',
@@ -74,7 +76,7 @@ export const filterInvoices = defineCapability({
 Prose answers "what is this page about". Rows and rules answer "which ones".
 
 ```ts
-import { KnowledgeBase, createRulesEngine, fact } from 'client-agent/rules';
+import { KnowledgeBase, createRulesEngine, fact } from 'boaz/rules';
 
 const knowledge = new KnowledgeBase({
   facts: [
@@ -129,18 +131,18 @@ which ones. A model cannot make that claim.
 // vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { clientAgent } from 'client-agent/vite';
+import { boaz } from 'boaz/vite';
 
 export default defineConfig({
-  plugins: [react(), clientAgent({ include: ['src/**/*.{ts,tsx}'] })],
+  plugins: [react(), boaz({ include: ['src/**/*.{ts,tsx}'] })],
 });
 ```
 
 ```tsx
 // app.tsx
-import manifest from 'client-agent:manifest';
-import { AgentProvider } from 'client-agent/react';
-import { createRulesEngine } from 'client-agent/rules';
+import manifest from 'boaz:manifest';
+import { AgentProvider } from 'boaz/react';
+import { createRulesEngine } from 'boaz/rules';
 
 <AgentProvider
   engine={createRulesEngine({ knowledge, answers, capabilities: manifest.capabilities })}
@@ -179,7 +181,7 @@ Capability metadata says what the app can do. It does not say what the page says
 hosted model, pass `readContext` and the runtime carries page text into the prompt under its own budget:
 
 ```js
-import { createDomContextReader } from 'client-agent/dom';
+import { createDomContextReader } from 'boaz/dom';
 
 const readContext = createDomContextReader({
   sections: [
@@ -212,14 +214,14 @@ can emit in CI.
 
 ## No React? The core is framework-free
 
-`client-agent/react` is a convenience, not the contract. shobyde.com runs the same package in a
+`boaz/react` is a convenience, not the contract. shobyde.com runs the same package in a
 Vite page with no framework at all: it imports the generated manifest, registers the handlers, and
 renders its own panel.
 
 ```js
-import manifest from 'client-agent:manifest';
-import { AgentRuntime, registry } from 'client-agent/core';
-import { createRulesEngine } from 'client-agent/rules';
+import manifest from 'boaz:manifest';
+import { AgentRuntime, registry } from 'boaz/core';
+import { createRulesEngine } from 'boaz/rules';
 import { siteCapabilities } from './capabilities.js';
 
 for (const capability of siteCapabilities) registry.register(capability);
@@ -244,8 +246,8 @@ Hash routes are supported for anchor navigation (`route: '#projects'`).
 engine your app actually runs:
 
 ```bash
-npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
-npx client-agent bench --probes agent-probes.json --module agent-setup.mjs --samples
+npx boaz audit --probes agent-probes.json --module agent-setup.mjs
+npx boaz bench --probes agent-probes.json --module agent-setup.mjs --samples
 ```
 
 `agent-probes.json` is one question per line, with what a correct answer looks
@@ -275,7 +277,7 @@ loop.
 No probe file yet? Generate one from the manifest:
 
 ```bash
-npx client-agent probes --generate --manifest dist/agent-manifest.json
+npx boaz probes --generate --manifest dist/agent-manifest.json
 ```
 
 Every capability title and keyword becomes a question that expects the
@@ -289,7 +291,7 @@ Edit the wording, then run `audit`.
 Real output, from the demo app in `apps/demo`:
 
 ```console
-$ client-agent verify apps/demo
+$ boaz verify apps/demo
 12 capabilities · 5 routes · 17 files scanned
 clean
 ```
@@ -297,7 +299,7 @@ clean
 And on a fixture where an action sounds destructive but has no confirmation gate:
 
 ```console
-$ client-agent verify fixtures/selfcheck/unsafe-action
+$ boaz verify fixtures/selfcheck/unsafe-action
 src/capabilities.ts:3  warning  CAP007  action sounds like it mutates state; set requiresConfirmation: true unless it is reversible and cheap
 
 1 capability · 0 routes · 1 file scanned
@@ -319,7 +321,7 @@ Every code is stable and documented, so CI output is citable:
 | `CAP009` | error | Invalid id or kind |
 | `CAP010` | warning | Two capabilities claim the same route |
 
-`npx client-agent codes` prints the table; `client-agent verify --strict` fails on warnings too.
+`npx boaz codes` prints the table; `boaz verify --strict` fails on warnings too.
 
 ## The safety model
 
@@ -363,7 +365,7 @@ It is a small invoices app ("Ledger") with five routes and twelve capabilities. 
 Verified on this machine:
 
 - `pnpm test` — 86 tests across schema validation, BM25 ranking, prompt budgeting, output parsing, the tool loop (navigation, late handler registration, schema retry, confirmation approve/cancel, step cap), the AST extractor, the keyword engine, the knowledge base (joins, recursive rules, scoped assumptions, dedupe) and streamed deltas.
-- `client-agent verify --self-check fixtures/selfcheck` — 9/9 fixtures produce exactly the diagnostic codes they declare, including the clean fixture producing none.
+- `boaz verify --self-check fixtures/selfcheck` — 9/9 fixtures produce exactly the diagnostic codes they declare, including the clean fixture producing none.
 - The demo in headless Chromium: "show only the overdue invoices" navigates from `/` to `/settings/billing` and filters the table to three overdue rows; "delete this workspace" raises the confirmation card; Cancel leaves state untouched.
 
 Not verified here:
@@ -375,7 +377,7 @@ Not verified here:
 ## Repo layout
 
 ```
-packages/client-agent/src/
+packages/boaz/src/
   core/    types, define, registry, schema, retriever, prompt, tools, loop, keyword engine
   rules/   knowledge base (facts, rules, unification), rules engine, answer contract
   build/   AST extractor, glob matcher, diagnostic codes, terminal report
@@ -389,9 +391,11 @@ docs/media/         stills captured from the running demo
 
 ## Status
 
-`0.4.0`. 0.4.0 is a breaking release: the `webllm` and `chrome-ai` entry points, their peer
-dependency, and the demo's worker are removed. Publishing is wired in `.github/workflows/release.yml`,
-which packs the tarball, attaches it to the GitHub release, and publishes to npm once an `NPM_TOKEN`
-secret exists. It is running in production on shobyde.com.
+`0.7.0`. The package is renamed from `client-agent` to `boaz`; the code is the same 0.6.10 behaviour
+under a new name, `bin`, virtual module (`boaz:manifest`), dev artifact directory (`.boaz/`) and
+consumer skill (`boaz-capabilities.md`). 0.4.0 was the last breaking change before that: the `webllm`
+and `chrome-ai` entry points, their peer dependency and the demo's worker are gone. Publishing is
+wired in `.github/workflows/release.yml`, which packs the tarball, attaches it to the GitHub release,
+and publishes to npm once an `NPM_TOKEN` secret exists. It is running in production on shobyde.com.
 
 MIT.

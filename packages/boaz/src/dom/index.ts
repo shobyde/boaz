@@ -1,6 +1,6 @@
 /**
  * Browser-only helper: turns visible sections of a page into grounding text for
- * one assistant turn. Kept in its own subpath so `client-agent/core` stays
+ * one assistant turn. Kept in its own subpath so `boaz/core` stays
  * usable in a worker or on the server, where there is no DOM.
  */
 import { tokenize } from '../core/retriever.js';

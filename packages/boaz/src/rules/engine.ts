@@ -181,14 +181,14 @@ function callTool(id: string, args: Record<string, unknown>): string {
   return ['```json', JSON.stringify({ tool: id, arguments: args }), '```'].join('\n');
 }
 
-const QUERY_RESULT = /^\[client-agent\] Query "([^"]+)" returned ([\s\S]*)$/;
-const ACTION_RESULT = /^\[client-agent\] "([^"]+)" ran successfully and returned ([\s\S]*)$/;
+const QUERY_RESULT = /^\[boaz\] Query "([^"]+)" returned ([\s\S]*)$/;
+const ACTION_RESULT = /^\[boaz\] "([^"]+)" ran successfully and returned ([\s\S]*)$/;
 
 /** Results of calls made since the visitor's last message, keyed by capability. */
 function observationsThisTurn(request: EngineRequest): Map<string, unknown> {
   const users: number[] = [];
   request.messages.forEach((message, index) => {
-    if (message.role === 'user' && !message.content.startsWith('[client-agent]')) users.push(index);
+    if (message.role === 'user' && !message.content.startsWith('[boaz]')) users.push(index);
   });
   const lastUser = users[users.length - 1] ?? -1;
   const found = new Map<string, unknown>();
@@ -209,7 +209,7 @@ function observationsThisTurn(request: EngineRequest): Map<string, unknown> {
 
 function lastUserMessage(request: EngineRequest): string {
   const users = request.messages.filter(
-    (message) => message.role === 'user' && !message.content.startsWith('[client-agent]'),
+    (message) => message.role === 'user' && !message.content.startsWith('[boaz]'),
   );
   return users[users.length - 1]?.content ?? '';
 }

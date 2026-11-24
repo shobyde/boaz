@@ -231,7 +231,7 @@ describe('tool reasoning', () => {
     const second = await engine.complete({
       messages: [
         { role: 'user', content: 'which projects use python?' },
-        { role: 'user', content: `[client-agent] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
+        { role: 'user', content: `[boaz] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
       ],
       tools: [],
     });
@@ -392,7 +392,7 @@ describe('tool reasoning', () => {
     const completion = await engine.complete({
       messages: [
         { role: 'user', content: 'which projects use python?' },
-        { role: 'user', content: `[client-agent] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
+        { role: 'user', content: `[boaz] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
       ],
       tools: [],
     });
@@ -404,7 +404,7 @@ describe('tool reasoning', () => {
     const completion = await engine.complete({
       messages: [
         { role: 'user', content: 'which projects use python?' },
-        { role: 'user', content: `[client-agent] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
+        { role: 'user', content: `[boaz] Query "projects.list" returned ${JSON.stringify(listResult)}.` },
         { role: 'assistant', content: 'Readback, Groundglass' },
         { role: 'user', content: 'which projects use sqlite?' },
       ],

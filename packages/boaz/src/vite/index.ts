@@ -4,7 +4,7 @@ import type { Plugin, ResolvedConfig } from 'vite';
 import { buildManifest, extractCapabilities, hasErrors, type ExtractResult } from '../build/extract.js';
 import { formatDiagnostic, formatSummary } from '../build/report.js';
 
-export interface ClientAgentPluginOptions {
+export interface BoazPluginOptions {
   /** Glob patterns relative to the Vite root. Defaults to src/**\/*.{ts,tsx,js,jsx}. */
   include?: string[];
   exclude?: string[];
@@ -22,14 +22,14 @@ export interface ClientAgentPluginOptions {
   sourceRoot?: string;
 }
 
-const DEFAULT_VIRTUAL = 'client-agent:manifest';
+const DEFAULT_VIRTUAL = 'boaz:manifest';
 
 /**
  * Build-time crawler: finds `defineCapability({...})` declarations with the
  * TypeScript AST, emits `agent-manifest.json`, and exposes it as a virtual
  * module so the app never keeps a second copy of its own capability list.
  */
-export function clientAgent(options: ClientAgentPluginOptions = {}): Plugin {
+export function boaz(options: BoazPluginOptions = {}): Plugin {
   const virtualId = options.virtualModule === false ? undefined : (options.virtualModule ?? DEFAULT_VIRTUAL);
   const resolvedVirtual = virtualId ? `\0${virtualId}` : undefined;
   const fileName = options.fileName ?? 'agent-manifest.json';
@@ -61,7 +61,7 @@ export function clientAgent(options: ClientAgentPluginOptions = {}): Plugin {
   };
 
   return {
-    name: 'client-agent',
+    name: 'boaz',
     enforce: 'pre',
 
     configResolved(resolved) {
@@ -77,9 +77,9 @@ export function clientAgent(options: ClientAgentPluginOptions = {}): Plugin {
           if (diagnostic.severity === 'error') this.error(line);
           else this.warn(line);
         }
-        this.info(`[client-agent] ${formatSummary(result, { color }).split('\n').join(' — ')}`);
+        this.info(`[boaz] ${formatSummary(result, { color }).split('\n').join(' — ')}`);
       } else if (failOnError && hasErrors(result.diagnostics)) {
-        this.error('client-agent: capability errors found (re-run with report enabled for details)');
+        this.error('boaz: capability errors found (re-run with report enabled for details)');
       }
     },
 
@@ -105,7 +105,7 @@ export function clientAgent(options: ClientAgentPluginOptions = {}): Plugin {
 
     configureServer(server) {
       if (options.devFile !== false) {
-        devFilePath = path.resolve(config.root, options.devFile ?? '.client-agent/agent-manifest.json');
+        devFilePath = path.resolve(config.root, options.devFile ?? '.boaz/agent-manifest.json');
         // Write once the first scan has produced real metadata, not the empty
         // placeholder from module load time.
         void scan().catch(() => undefined);
@@ -132,4 +132,4 @@ export function clientAgent(options: ClientAgentPluginOptions = {}): Plugin {
   };
 }
 
-export default clientAgent;
+export default boaz;

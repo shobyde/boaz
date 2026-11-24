@@ -1,17 +1,17 @@
 {
-  "name": "client-agent-workspace",
+  "name": "boaz-workspace",
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@12.3.4",
   "scripts": {
-    "build": "pnpm --filter client-agent build",
-    "test": "pnpm --filter client-agent test",
-    "typecheck": "pnpm --filter client-agent typecheck && pnpm --filter demo typecheck",
-    "selfcheck": "pnpm build && node packages/client-agent/dist/cli/index.js verify --self-check fixtures/selfcheck",
-    "verify:demo": "pnpm build && node packages/client-agent/dist/cli/index.js verify apps/demo",
+    "build": "pnpm --filter boaz build",
+    "test": "pnpm --filter boaz test",
+    "typecheck": "pnpm --filter boaz typecheck && pnpm --filter demo typecheck",
+    "selfcheck": "pnpm build && node packages/boaz/dist/cli/index.js verify --self-check fixtures/selfcheck",
+    "verify:demo": "pnpm build && node packages/boaz/dist/cli/index.js verify apps/demo",
     "demo": "pnpm build && pnpm --filter demo dev",
     "demo:build": "pnpm build && pnpm --filter demo build",
-    "check": "pnpm build && pnpm --filter client-agent test && node packages/client-agent/dist/cli/index.js verify --self-check fixtures/selfcheck && node packages/client-agent/dist/cli/index.js verify apps/demo && pnpm --filter demo build"
+    "check": "pnpm build && pnpm --filter boaz test && node packages/boaz/dist/cli/index.js verify --self-check fixtures/selfcheck && node packages/boaz/dist/cli/index.js verify apps/demo && pnpm --filter demo build"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

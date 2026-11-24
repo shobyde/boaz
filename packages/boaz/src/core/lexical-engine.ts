@@ -40,7 +40,7 @@ function verbBoost(capabilityId: string, title: string, queryVerb: string | unde
 function realUserMessages(request: EngineRequest): number[] {
   const indexes: number[] = [];
   request.messages.forEach((message, index) => {
-    if (message.role === 'user' && !message.content.startsWith('[client-agent]')) indexes.push(index);
+    if (message.role === 'user' && !message.content.startsWith('[boaz]')) indexes.push(index);
   });
   return indexes;
 }
@@ -202,20 +202,20 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       const indexes = realUserMessages(request);
       const lastUserIndex = indexes[indexes.length - 1] ?? -1;
       const after = request.messages.slice(lastUserIndex + 1);
-      if (after.some((message) => message.content.startsWith('[client-agent]'))) {
+      if (after.some((message) => message.content.startsWith('[boaz]'))) {
         const trace = after.map((message) => message.content).join(' ');
         if (trace.includes('Navigation succeeded')) return { text: "You're there now. Anything else?" };
         // Parse the tool result from its own message: the payload is JSON that
         // can contain full stops, so the period ending the sentence must be the
         // last character, not the first one followed by a space.
         const queryMessage = after.find((message) =>
-          message.content.startsWith('[client-agent] Query "'),
+          message.content.startsWith('[boaz] Query "'),
         );
         if (queryMessage) {
           // The transcript copy is clipped for prompt budgets, so a large result
           // arrives as truncated JSON. Prefer the structured observation the
           // runtime passes alongside it, and never show raw JSON to a visitor.
-          const id = /^\[client-agent\] Query "([^"]+)"/.exec(queryMessage.content)?.[1];
+          const id = /^\[boaz\] Query "([^"]+)"/.exec(queryMessage.content)?.[1];
           const observed = id ? request.observations?.[id] : undefined;
           const payload =
             observed !== undefined
@@ -230,7 +230,7 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
         }
         if (trace.includes('ran successfully')) {
           // Name what ran, so the reply is not the same sentence every time.
-          const ranId = /\[client-agent\] "([^"]+)" ran successfully/.exec(trace)?.[1];
+          const ranId = /\[boaz\] "([^"]+)" ran successfully/.exec(trace)?.[1];
           const title = ranId ? byId.get(ranId)?.title : undefined;
           return { text: title ? `Done: ${title}.` : 'Done.' };
         }

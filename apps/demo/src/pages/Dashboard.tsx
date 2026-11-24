@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { useRegisterCapability } from 'client-agent/react';
+import { useRegisterCapability } from 'boaz/react';
 import { money, reportMonths, activity, invoices } from '../data.js';
 import { openDashboard } from '../features/home/capabilities.js';
 

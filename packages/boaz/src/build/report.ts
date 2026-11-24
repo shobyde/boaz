@@ -46,7 +46,7 @@ export function printCodes(): string {
     const severity = entry.severity === 'error' ? 'error  ' : 'warning';
     return `${entry.code}  ${severity}  ${entry.title}\n              ${entry.detail}`;
   });
-  return `client-agent diagnostic codes\n\n${lines.join('\n')}`;
+  return `boaz diagnostic codes\n\n${lines.join('\n')}`;
 }
 
 export function describeCode(code: string): string | undefined {

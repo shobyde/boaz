@@ -1,4 +1,4 @@
-// client-agent bench — does the copy read like writing, or like a template?
+// boaz bench — does the copy read like writing, or like a template?
 //
 // Probes grouped by `intent` are paraphrases of one question. The same facts
 // must survive every phrasing (fidelity), while the words around them should

@@ -9,7 +9,7 @@ import { runBench } from '../src/cli/bench.js';
 import type { ManifestCapability } from '../src/core/types.js';
 
 async function workspace(files: Record<string, string>): Promise<string> {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'client-agent-cli-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'boaz-cli-'));
   for (const [name, body] of Object.entries(files)) {
     await fs.writeFile(path.join(dir, name), body);
   }

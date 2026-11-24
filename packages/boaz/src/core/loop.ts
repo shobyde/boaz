@@ -153,7 +153,7 @@ export class AgentRuntime {
 
     const correct = (message: string) => {
       corrections += 1;
-      messages.push({ role: 'user', content: `[client-agent] ${message}` });
+      messages.push({ role: 'user', content: `[boaz] ${message}` });
     };
 
     while (toolCalls < this.maxToolCalls) {
@@ -258,7 +258,7 @@ export class AgentRuntime {
           { role: 'assistant', content: completion.text },
           {
             role: 'user',
-            content: `[client-agent] Navigation succeeded. The visitor is now on ${route}.`,
+            content: `[boaz] Navigation succeeded. The visitor is now on ${route}.`,
           },
         );
         continue;
@@ -302,7 +302,7 @@ export class AgentRuntime {
             { role: 'assistant', content: completion.text },
             {
               role: 'user',
-              content: `[client-agent] "${capability.id}" rendered a surface. Describe it in one sentence if the visitor still needs words.`,
+              content: `[boaz] "${capability.id}" rendered a surface. Describe it in one sentence if the visitor still needs words.`,
             },
           );
           continue;
@@ -314,7 +314,7 @@ export class AgentRuntime {
           push({ type: 'query', capabilityId: capability.id, args, result });
           messages.push(
             { role: 'assistant', content: completion.text },
-            { role: 'user', content: `[client-agent] Query "${capability.id}" returned ${clip(result)}.` },
+            { role: 'user', content: `[boaz] Query "${capability.id}" returned ${clip(result)}.` },
           );
         } else {
           push({ type: 'action', capabilityId: capability.id, args, result });
@@ -322,7 +322,7 @@ export class AgentRuntime {
             { role: 'assistant', content: completion.text },
             {
               role: 'user',
-              content: `[client-agent] "${capability.id}" ran successfully and returned ${clip(result)}.`,
+              content: `[boaz] "${capability.id}" ran successfully and returned ${clip(result)}.`,
             },
           );
         }

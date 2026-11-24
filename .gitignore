@@ -1,8 +1,10 @@
 node_modules/
 dist/
-.client-agent/
+.boaz/
 *.log
 .DS_Store
 apps/demo/dist/
 *.tsbuildinfo
 *.tgz
+packages/boaz/README.md
+packages/boaz/LICENSE
