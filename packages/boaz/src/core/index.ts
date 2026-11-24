@@ -13,7 +13,22 @@ export type { SchemaErrorDetail, SchemaValidation } from './schema.js';
 export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js';
 export { analyzeQuestion } from './question.js';
 export { summarise, splitSentences } from './summarise.js';
-export { planRequest } from './plan.js';
+export { planRequest, routeRequest } from './plan.js';
+export { createToolServer, createToolClient, toolsFromCapabilities, planToolCall, toolName } from './mcp.js';
+export type {
+  JsonRpcRequest,
+  JsonRpcResponse,
+  JsonRpcError,
+  JsonRpcId,
+  ToolDefinition,
+  ToolCallResult,
+  ToolServer,
+  ToolServerOptions,
+  ToolClient,
+  ToolPlan,
+  PlannedToolCall,
+  PlanToolOptions,
+} from './mcp.js';
 export { matchSkill, selectSkill, runSkill } from './skill.js';
 export type { Skill, SkillStep, SkillCheck, SkillCheckKind, SkillRun, SkillStepRecord, SkillCheckRecord, RunSkillOptions } from './skill.js';
 export { executePlan } from './execute.js';

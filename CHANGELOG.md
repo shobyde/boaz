@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.7.14 - 2026-11-24
+
+- An MCP-shaped bridge, so the capabilities a page's assistant uses are the same tools a protocol
+  client can call: `createToolServer({ capabilities, run })` answers `initialize`, `tools/list` and
+  `tools/call` as JSON-RPC 2.0, with one tool per capability, the capability's own JSON Schema, and
+  `content` text beside `structuredContent` (a reader gets a sentence, a program gets the value).
+- Argument validation happens on the server's side of the wire: a missing required argument, an
+  argument the schema never declared, and a value outside an enum are `isError` results that never
+  reach the handler, and an unknown tool is a `-32602` error that leaves the channel usable. A caller
+  sending `arguments` as a string is refused rather than read as "no arguments".
+- `createToolClient(send)` is transport-agnostic: the same client drives the server in-process or over
+  a line-based transport, and it rejects a response carrying another call's id.
+- `routeRequest(query, { capabilities, prefer })` routes one sentence to one capability, sharing
+  `planRequest`'s ranking instead of keeping a second one; `planToolCall` turns a sentence into tool
+  calls (one, or one per connected request) and keeps `runnable: false` with its reason when a call
+  needs an argument or a page the sentence never gave. A question-shaped sentence prefers the
+  capability that answers (`blog.stats`) over the page it is about (`blog.open_archive`).
+- Ceiling: a plan whose second step acts on a page the first step opens has no tool-call form a
+  client can complete, because the protocol has no way to say "the route landed" (recorded in the
+  site's `bench/no-llm/mcp.json` as `l12-route-then-act`).
+
 ## 0.7.13 - 2026-11-24
 
 - Accessibility-tree actions without a model: `parseAction(sentence)` reads a verb, a role, a name, an

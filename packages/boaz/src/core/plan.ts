@@ -187,6 +187,131 @@ function verbBoost(capabilityId: string, title: string, verb: string | null): nu
   return tokenize(capabilityId).includes(verb) ? 1.2 : 1;
 }
 
+interface ClauseContext {
+  verbs: Set<string>;
+  index: CapabilityIndex;
+  capabilities: ManifestCapability[];
+  /**
+   * What the sentence is: a request names a place or an action, a question
+   * names something to answer. A tool surface needs the distinction because a
+   * question sent to `tools/call` should not resolve to a route.
+   */
+  prefer?: 'question' | 'request';
+}
+
+interface ClauseSelection {
+  verb: string | null;
+  capability: ManifestCapability;
+  score: number;
+  args: Record<string, unknown> | null;
+  alternates: PlannedAlternate[];
+}
+
+/**
+ * Routes one clause to one capability, with its arguments and its runner-ups.
+ * A plan is several of these in order; a single request is exactly one, which
+ * is why both paths call this instead of keeping two ranking rules.
+ */
+function selectForClause(clause: string, ctx: ClauseContext): ClauseSelection | { declined: 'unmapped-clause' } {
+  const verb = leadingVerb(clause, ctx.verbs);
+  const scored = ctx.index
+    .search(topicOf(clause, verb), { limit: 5, boost: false })
+    .map((entry) => ({ ...entry, score: entry.score * verbBoost(entry.capability.id, entry.capability.title, verb) }))
+    .sort((a, b) => b.score - a.score);
+  const ranked = scored.filter((entry) => entry.score > 0);
+  // The engine's own rule, kept per clause: a request that names no specific
+  // thing asks for a place. "Show me the projects" is the page; "expand the
+  // card" is the card.
+  const place = topicOf(clause, verb);
+  // A verb plus an argument it consumes is a complete call, so it decides
+  // first: "expand hobnob" is the expand capability even though the object
+  // only appears in the card's own keywords. A verb with no argument is just
+  // a verb, and the topic words decide.
+  const scoredById = new Map(scored.map((entry) => [entry.capability.id, entry.score]));
+  const verbAgreed = ctx.capabilities
+    .filter(
+      (capability) =>
+        verbBoost(capability.id, capability.title, verb) > 1 &&
+        Object.keys(inferArgs(capability, clause) ?? {}).length > 0,
+    )
+    .sort((a, b) => (scoredById.get(b.id) ?? 0) - (scoredById.get(a.id) ?? 0))[0];
+  const route = NAMED_THING.test(place) ? undefined : ranked.find((entry) => entry.capability.kind === 'route');
+  // A request names a place or an action; knowledge paragraphs and queries
+  // only answer it when nothing else matched.
+  const actionable = ranked.find((entry) => ['route', 'action'].includes(String(entry.capability.kind)));
+  // A question asked of a tool surface wants the capability that answers, not
+  // the page it is about: "how many posts has he written" is `blog.stats` even
+  // though the archive is the loudest keyword match.
+  const answerable = ranked.find((entry) => ['query', 'knowledge'].includes(String(entry.capability.kind)));
+  const pick: { capability: ManifestCapability; score: number } | undefined = verbAgreed
+    ? { capability: verbAgreed, score: scoredById.get(verbAgreed.id) ?? 0 }
+    : ctx.prefer === 'question'
+      ? answerable ?? route ?? actionable ?? ranked[0]
+      : route ?? actionable ?? ranked[0];
+  const owner = !pick || pick.score <= 0
+    ? enumOwners(ctx.capabilities, clause).sort(
+      (a, b) => verbBoost(b.id, b.title, verb) - verbBoost(a.id, a.title, verb),
+    )[0]
+    : undefined;
+  if (!pick && !owner) return { declined: 'unmapped-clause' };
+  const capability = owner ?? pick!.capability;
+  const score = owner ? 0 : pick!.score;
+  const args = inferArgs(capability, clause);
+  // Recovery is a ranked fact, not a guess: what else scored on these words,
+  // could run without an argument the sentence never gave, and is not a place.
+  const alternates: PlannedAlternate[] = String(capability.kind) === 'route'
+    ? []
+    : ranked
+      .filter((entry) => entry.capability.id !== capability.id && String(entry.capability.kind) !== 'route')
+      .map((entry) => ({
+        capabilityId: entry.capability.id,
+        title: entry.capability.title,
+        kind: String(entry.capability.kind),
+        args: inferArgs(entry.capability, clause),
+      }))
+      .filter((alternate) => alternate.args !== null)
+      .slice(0, 2);
+  return { verb, capability, score, args, alternates };
+}
+
+export interface RoutedRequest {
+  capabilityId: string;
+  title: string;
+  kind: string;
+  args: Record<string, unknown> | null;
+  verb: string | null;
+  /** Declared the query every capability refused to route, when it did. */
+  declined?: 'unmapped-clause';
+}
+
+export interface RouteOptions extends PlanOptions {
+  /** `question` prefers query/knowledge capabilities; `request` prefers routes/actions. */
+  prefer?: 'question' | 'request';
+}
+
+/**
+ * Routes one request to one capability. `planRequest` answers "what did this
+ * sentence ask for"; this answers "which tool serves it", for a host that only
+ * has a single call to make. Both share one ranking rule, so a tool surface and
+ * a plan cannot disagree about the same words.
+ */
+export function routeRequest(query: string, options: RouteOptions): RoutedRequest {
+  const selection = selectForClause(query, {
+    verbs: verbSet(options.controllerVerbs),
+    index: new CapabilityIndex(options.capabilities),
+    capabilities: options.capabilities,
+    ...(options.prefer ? { prefer: options.prefer } : {}),
+  });
+  if ('declined' in selection) return { capabilityId: '', title: '', kind: '', args: null, verb: null, declined: 'unmapped-clause' };
+  return {
+    capabilityId: selection.capability.id,
+    title: selection.capability.title,
+    kind: String(selection.capability.kind),
+    args: selection.args,
+    verb: selection.verb,
+  };
+}
+
 /**
  * Plans a request, or declines to. Nothing here reads a model: the sentence is
  * cut at its own connectives, each clause is routed on its own words, and the
@@ -195,8 +320,11 @@ function verbBoost(capabilityId: string, title: string, verb: string | null): nu
  */
 export function planRequest(query: string, options: PlanOptions): RequestPlan {
   const verbs = verbSet(options.controllerVerbs);
-  const index = new CapabilityIndex(options.capabilities);
-  const byId = new Map(options.capabilities.map((capability) => [capability.id, capability]));
+  const ctx: ClauseContext = {
+    verbs,
+    index: new CapabilityIndex(options.capabilities),
+    capabilities: options.capabilities,
+  };
   const clauses = splitClauses(query, verbs);
 
   if (clauses.length < 2) {
@@ -206,62 +334,11 @@ export function planRequest(query: string, options: PlanOptions): RequestPlan {
 
   const steps: PlannedStep[] = [];
   for (const clause of clauses) {
-    const verb = leadingVerb(clause, verbs);
-    const scored = index
-      .search(topicOf(clause, verb), { limit: 5, boost: false })
-      .map((entry) => ({ ...entry, score: entry.score * verbBoost(entry.capability.id, entry.capability.title, verb) }))
-      .sort((a, b) => b.score - a.score);
-    const ranked = scored
-      .filter((entry) => entry.score > 0)
-      .map((entry) => ({ ...entry, capability: byId.get(entry.capability.id) ?? entry.capability }));
-    // The engine's own rule, kept per clause: a request that names no specific
-    // thing asks for a place. "Show me the projects" is the page; "expand the
-    // card" is the card.
-    const place = topicOf(clause, verb);
-    // A verb plus an argument it consumes is a complete call, so it decides
-    // first: "expand hobnob" is the expand capability even though the object
-    // only appears in the card's own keywords. A verb with no argument is just
-    // a verb, and the topic words decide.
-    const scoredById = new Map(scored.map((entry) => [entry.capability.id, entry.score]));
-    const verbAgreed = options.capabilities
-      .filter(
-        (capability) =>
-          verbBoost(capability.id, capability.title, verb) > 1 &&
-          Object.keys(inferArgs(capability, clause) ?? {}).length > 0,
-      )
-      .sort((a, b) => (scoredById.get(b.id) ?? 0) - (scoredById.get(a.id) ?? 0))[0];
-    const route = NAMED_THING.test(place) ? undefined : ranked.find((entry) => entry.capability.kind === 'route');
-    // A request names a place or an action; knowledge paragraphs and queries
-    // only answer it when nothing else matched.
-    const actionable = ranked.find((entry) => ['route', 'action'].includes(String(entry.capability.kind)));
-    const pick: { capability: ManifestCapability; score: number } | undefined = verbAgreed
-      ? { capability: verbAgreed, score: scoredById.get(verbAgreed.id) ?? 0 }
-      : route ?? actionable ?? ranked[0];
-    const owner = !pick || pick.score <= 0
-      ? enumOwners(options.capabilities, clause).sort(
-        (a, b) => verbBoost(b.id, b.title, verb) - verbBoost(a.id, a.title, verb),
-      )[0]
-      : undefined;
-    if (!pick && !owner) {
+    const selection = selectForClause(clause, ctx);
+    if ('declined' in selection) {
       return { steps, declined: 'unmapped-clause', failed: clause, summary: '' };
     }
-    const capability = owner ?? pick!.capability;
-    const score = owner ? 0 : pick!.score;
-    const args = inferArgs(capability, clause);
-    // Recovery is a ranked fact, not a guess: what else scored on these words,
-    // could run without an argument the sentence never gave, and is not a place.
-    const alternates: PlannedAlternate[] = String(capability.kind) === 'route'
-      ? []
-      : ranked
-        .filter((entry) => entry.capability.id !== capability.id && String(entry.capability.kind) !== 'route')
-        .map((entry) => ({
-          capabilityId: entry.capability.id,
-          title: entry.capability.title,
-          kind: String(entry.capability.kind),
-          args: inferArgs(entry.capability, clause),
-        }))
-        .filter((alternate) => alternate.args !== null)
-        .slice(0, 2);
+    const { verb, capability, score, args, alternates } = selection;
     const previous = steps[steps.length - 1];
     const needs: PlannedStep['needs'] = !previous
       ? 'none'
