@@ -33,7 +33,7 @@ const ACTION_VERBS = new Set([
 function verbBoost(capabilityId: string, title: string, queryVerb: string | undefined): number {
   if (!queryVerb) return 1;
   const [first] = tokenize(title);
-  if (first === queryVerb) return 1.35;
+  if (first === queryVerb) return 1.5;
   return tokenize(capabilityId).includes(queryVerb) ? 1.2 : 1;
 }
 
@@ -255,9 +255,11 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       // "Show me the blog" asks for a place. If a route clears the threshold, it
       // is the answer, whether or not a card about the same noun scores higher.
       if (NAVIGATE.test(query) && !NAMED_THING.test(query)) {
-        const route = ranked.find(
-          (entry) => byId.get(entry.capability.id)?.kind === 'route' && entry.score >= threshold,
-        );
+        // The best route is often ranked fourth behind cards about the same noun,
+        // so look further than the normal shortlist.
+        const route = index
+          .search(query, { limit: 10, boost: false })
+          .find((entry) => byId.get(entry.capability.id)?.kind === 'route' && entry.score >= threshold);
         if (route) return { text: callTool(route.capability.id, {}) };
       }
 

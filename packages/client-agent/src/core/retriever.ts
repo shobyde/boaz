@@ -4,6 +4,12 @@ const STOPWORDS = new Set([
   'a', 'an', 'the', 'and', 'or', 'of', 'to', 'in', 'on', 'for', 'with', 'is', 'are',
   'be', 'this', 'that', 'it', 'as', 'at', 'by', 'from', 'can', 'i', 'me', 'my', 'we',
   'you', 'your', 'they', 'their', 'do', 'does', 'how', 'what', 'where', 'when', 'which',
+  // Pronouns carry no retrieval signal, and with a handful of capabilities their
+  // rarity inflates IDF: "where is he based" matched a rule about "what has he
+  // built" on the word "he" alone.
+  'he', 'him', 'his', 'she', 'her', 'hers', 'they', 'them', 'their', 'it', 'its', 'we', 'us',
+  'our', 'been', 'being', 'was', 'were', 'has', 'have', 'had', 'did', 'done', 'will', 'would',
+  'should', 'could', 'may', 'might', 'must',
   'please', 'want', 'wants', 'need', 'needs', 'would', 'like', 'help', 'user', 'users',
 ]);
 

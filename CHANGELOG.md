@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.9 — 2026-11-23
+
+- Pronouns and auxiliaries are stopwords. With a handful of capabilities, a rare word inflates IDF:
+  "where is he based?" was matching an answer rule about "what has he built" on the word "he".
+- A navigation request searches past the shortlist for the best route ("show me the blog" was routing
+  to the newest-article card), and a verb match now weights 1.5, enough to separate "open the project
+  site" from "show the project card".
+- 114 tests.
+
 ## 0.5.8 — 2026-11-23
 
 - Verb boost now feeds the scores that confidence, margins and suggestions use, instead of only the
