@@ -46,6 +46,12 @@ export interface AnswerRule {
   steps?: ToolStep[];
   /** Minimum retrieval score before this rule is tried. Default 1.0. */
   threshold?: number;
+  /**
+   * An explicit trigger for phrasings keyword matching cannot see. "What does he
+   * do?" tokenizes to nothing but stopwords, so it can only be recognised by the
+   * shape of the question. A matching rule is used ahead of retrieval.
+   */
+  match?: (query: string) => boolean;
 }
 
 export interface ToolStep {
@@ -98,6 +104,12 @@ export interface RulesEngineOptions {
   fallback?: AgentEngine;
   /** Extra facts for every query, e.g. synonyms the app wants to honour. */
   facts?: FactRow[];
+  /**
+   * Values the app knows about but does not assert yet — typically what a tool
+   * will return. Declaring them means "does he have python projects?" recognises
+   * the technology before the project list has been read.
+   */
+  constants?: string[];
   /**
    * The page (or document) to read when a question names a field the facts do
    * not cover. Results arrive as `field(<kind>, <value>)` assumptions.
@@ -202,6 +214,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
   const index = new CapabilityIndex(answers.map(answerCapability));
   const fallback = options.fallback ?? createLexicalEngine({ capabilities: options.capabilities ?? [] });
   const baseFacts = options.facts ?? [];
+  for (const constant of options.constants ?? []) knowledge.declare(constant);
   const scanner = options.grounding
     ? (options.grounding.scanner ?? createFieldScanner(options.grounding.patterns ? { patterns: options.grounding.patterns } : {}))
     : undefined;
@@ -320,14 +333,28 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
 
       const controllerRequest = CONTROLLER.test(query);
       let best;
-      if (answers.length > 0 && !controllerRequest) {
+      const explicit = controllerRequest ? undefined : answers.find((answer) => answer.match?.(query));
+      if (explicit) {
+        best = { capability: answerCapability(explicit), score: Number.POSITIVE_INFINITY };
+      } else if (answers.length > 0 && !controllerRequest) {
         const hits = index.search(retrieval, { limit: 3, boost: false });
         const words = retrieval.split(/[^A-Za-z0-9+#.]+/).filter((word) => word.length > 1);
         const namesConstant = words.some((word) => knowledge.canonicalFor(word).length > 0);
         if (namesConstant) {
+          // A question that names a declared value belongs to the rule that
+          // consumes values, even when the phrasing shares no keyword with it
+          // ("what's built with python?") — so that rule enters the shortlist
+          // even when it scored nothing.
+          const seen = new Set(hits.map((hit) => hit.capability.id));
+          for (const answer of answers) {
+            if (seen.has(answer.id) || !joinsAskedConstant(answer, knowledge)) continue;
+            hits.push({ capability: answerCapability(answer), score: 2.5 });
+          }
           for (const hit of hits) {
             const candidate = answers.find((answer) => answer.id === hit.capability.id);
-            if (candidate && joinsAskedConstant(candidate, knowledge)) hit.score *= 1.4;
+            if (candidate && joinsAskedConstant(candidate, knowledge)) {
+              hit.score = Math.max(hit.score * 1.4, 2.5);
+            }
           }
           hits.sort((a, b) => b.score - a.score);
         }

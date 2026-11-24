@@ -167,8 +167,10 @@ describe('conversation memory', () => {
       memory: false,
     });
     await ask(engine, 'which projects use python?');
-    const completion = await ask(engine, 'and sqlite?');
-    expect(completion.text).not.toBe('readback');
+    // A bare continuation has nothing to resolve without memory. (Naming a real
+    // constant would now answer on its own, which is not a memory feature.)
+    const completion = await ask(engine, 'and?');
+    expect(completion.text).not.toContain('readback');
   });
 
   it('records what it answered for diagnostics', async () => {
@@ -300,6 +302,54 @@ describe('tool reasoning', () => {
       observations: { 'projects.list': listResult },
     });
     expect(second.text).toBe('2 projects');
+  });
+
+  it('recognises a declared value before the tool has run', async () => {
+    const engine = createRulesEngine({
+      knowledge: new KnowledgeBase({
+        rules: ['projects_using(?P) :- uses(?P, ?T), asked(?T).'],
+      }),
+      answers: [
+        {
+          id: 'projects.using',
+          title: 'Which projects use a technology',
+          keywords: ['which projects use'],
+          goal: 'projects_using(?P)',
+          steps: [{ capabilityId: 'projects.list', toFacts: () => [] }],
+          compose: ({ solutions }) => `${solutions.length} matches`,
+        },
+      ],
+      capabilities: [],
+      // The app knows what the tool will return before it returns it.
+      constants: ['Python 3.10+'],
+    });
+    const completion = await engine.complete({
+      messages: [{ role: 'user', content: "what's built with python?" }],
+      tools: [],
+    });
+    expect(completion.text).toContain('projects.list');
+  });
+
+  it('lets a rule claim a phrasing with no content words', async () => {
+    const engine = createRulesEngine({
+      knowledge: new KnowledgeBase(),
+      answers: [
+        {
+          id: 'profile.who',
+          title: 'Who he is',
+          goal: 'profile(?N)',
+          requiresSubject: false,
+          match: (question: string) => /^what does he do/i.test(question),
+          compose: () => 'manager and IC',
+        },
+      ],
+      capabilities: [],
+    });
+    const completion = await engine.complete({
+      messages: [{ role: 'user', content: 'what does he do?' }],
+      tools: [],
+    });
+    expect(completion.text).toBe('manager and IC');
   });
 
   it('tells the app which word the data did not have', async () => {

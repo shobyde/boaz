@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5 — 2026-11-23
+
+- `constants` option and `KnowledgeBase.declare()`: an app can declare the values a tool will return, so
+  "what's built with python?" is recognised before the project list has been read. Rules that join on
+  `asked(?T)` are shortlisted whenever the question names one of those values.
+- `AnswerRule.match(query)`: an explicit trigger for questions keyword matching cannot see. "What does he
+  do?" is all stopwords, so it tokenizes to nothing and no BM25 score can reach it.
+- 117 tests.
+
 ## 0.6.4 — 2026-11-23
 
 - A rule that joins on `asked(?T)` gets a 1.4 boost when the question names a declared constant. "What's

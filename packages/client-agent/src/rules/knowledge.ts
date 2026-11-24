@@ -168,6 +168,16 @@ export class KnowledgeBase {
     for (const fact of facts) this.add(fact);
   }
 
+  /**
+   * Declares a constant's vocabulary without asserting a fact about it. Apps use
+   * this for values that live behind a tool ("Python 3.10+" arrives with the
+   * project list), so a question that names one can be recognised before any
+   * capability has run.
+   */
+  declare(constant: string): void {
+    if (constant) this.indexConstant(constant);
+  }
+
   private indexConstant(constant: string): void {
     // The same tokenizer the retriever uses, or "sqlite" (stemmed to "sqlit")
     // would never match the constant it came from.
