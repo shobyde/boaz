@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.8.2 - 2026-11-24
+
+- Releasing is one tag. `.github/workflows/release.yml` installs, builds, tests, checks that the tag
+  matches `packages/boaz/package.json`, packs the tarball, attaches it to the GitHub release and
+  publishes `@shobyde/boaz` to npm with provenance. Auth is trusted publishing over OIDC when the
+  repo variable `NPM_TRUSTED_PUBLISHER` is `true`, otherwise the `NPM_TOKEN` secret.
+- `NPM_STAGE=true` flips the same step to `npm stage publish`, which defers the publish to a human
+  running `npm stage approve <stage-id>`. Staging never needs a 2FA prompt, so a plain token can do
+  it; the approval is where proof-of-presence happens.
+- A tag whose version is already on the registry reports "already published" and exits 0, so
+  re-running a release is a no-op instead of a red run.
+
 ## 0.8.1 - 2026-11-24
 
 - The package publishes as `@shobyde/boaz`. npm's typo-squatting filter refuses the unscoped name
