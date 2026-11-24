@@ -269,6 +269,39 @@ describe('tool reasoning', () => {
     expect(completion.steps?.[0]).toMatchObject({ type: 'error', message: expect.stringContaining('slugOf') });
   });
 
+  it('runs a listing rule even when the question names nothing', async () => {
+    const engine = createRulesEngine({
+      knowledge: new KnowledgeBase({ rules: ['shipped(?P) :- project(?P).'] }),
+      answers: [
+        {
+          id: 'projects.all',
+          title: 'List the projects',
+          keywords: ['what has he built', 'list projects'],
+          threshold: 0,
+          goal: 'shipped(?P)',
+          requiresSubject: false,
+          steps: [
+            {
+              capabilityId: 'projects.list',
+              toFacts: (result: unknown) =>
+                ((result as typeof listResult).projects ?? []).map((project) => fact('project', project.title)),
+            },
+          ],
+          compose: ({ solutions }) => `${solutions.length} projects`,
+        },
+      ],
+      capabilities: [],
+    });
+    const first = await engine.complete({ messages: [{ role: 'user', content: 'what has he built?' }], tools: [] });
+    expect(first.text).toContain('projects.list');
+    const second = await engine.complete({
+      messages: [{ role: 'user', content: 'what has he built?' }],
+      tools: [],
+      observations: { 'projects.list': listResult },
+    });
+    expect(second.text).toBe('2 projects');
+  });
+
   it('tells the app which word the data did not have', async () => {
     const engine = createRulesEngine({
       knowledge: new KnowledgeBase({ rules: ['projects_using(?P) :- uses(?P, ?T), asked(?T).'] }),

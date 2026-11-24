@@ -33,6 +33,12 @@ export interface AnswerRule {
    */
   explain?: (context: AnswerContext) => string;
   /**
+   * A rule that lists everything ("what has he built") has no subject to look
+   * for, so set this to false. Default true: a rule with tools waits until the
+   * question names something worth looking up.
+   */
+  requiresSubject?: boolean;
+  /**
    * Tools to run before composing, in order. The engine emits one call per turn
    * and picks up the result on the next pass, so a rule can reason over live app
    * data instead of a copy of it.
@@ -319,7 +325,8 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         const [stem] = tokenize(word);
         return Boolean(stem) && !ruleWordsForMatch.has(stem);
       });
-      const matched = byScore && byScore.steps?.length && !hasSubject ? undefined : byScore;
+      const needsSubject = byScore?.requiresSubject !== false;
+      const matched = byScore && byScore.steps?.length && needsSubject && !hasSubject ? undefined : byScore;
 
       // Run the rule's read-only tools first, one per turn, and turn their
       // results into facts. This is the loop an LLM gets from tool calling, with

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — 2026-11-23
+
+- `requiresSubject: false` on an answer rule: a listing rule ("what has he built") has nothing to look
+  up but should still run, where a lookup rule ("which projects use TypeScript") waits for a subject.
+- 115 tests.
+
 ## 0.6.0 — 2026-11-23
 
 - A rule with tool steps only plans them when the question has a subject of its own. "What is his
