@@ -1,6 +1,6 @@
 {
   "name": "boaz",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",
@@ -63,7 +63,7 @@
     }
   },
   "bin": {
-    "boaz": "./dist/cli/index.js"
+    "boaz": "dist/cli/index.js"
   },
   "files": [
     "dist",

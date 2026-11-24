@@ -14,14 +14,15 @@ Most "AI in your app" implementations stream the DOM to a server, pay per token,
 - **Replies can stream, with provenance.** `streaming: { chunkChars, paceMs }` emits `delta` events on the same channel as tool steps, and a rule answer carries the goal, the terms it matched and the rule it applied.
 
 ```bash
-npm install boaz          # once the npm release runs; until then use the tarball below
+npm install boaz
 npx boaz init --skill     # writes the skill that keeps capabilities in sync
 npx boaz audit --probes agent-probes.json --module agent-setup.mjs
 npx boaz bench --probes agent-probes.json --module agent-setup.mjs --samples
 ```
 
-Until the npm token is in place, every version is also attached to its GitHub release, which npm
-installs directly and which ships a prebuilt `dist/`:
+Releases are staged by CI and approved by hand (`npm stage approve`), so a version is installable
+only after a human with an authenticator has looked at it. Every version is also attached to its
+GitHub release, which npm installs directly and which ships a prebuilt `dist/`:
 
 ```bash
 npm install https://github.com/shobyde/boaz/releases/download/v0.7.0/boaz-0.7.0.tgz
@@ -394,8 +395,9 @@ docs/media/         stills captured from the running demo
 `0.7.0`. The package is renamed from `client-agent` to `boaz`; the code is the same 0.6.10 behaviour
 under a new name, `bin`, virtual module (`boaz:manifest`), dev artifact directory (`.boaz/`) and
 consumer skill (`boaz-capabilities.md`). 0.4.0 was the last breaking change before that: the `webllm`
-and `chrome-ai` entry points, their peer dependency and the demo's worker are gone. Publishing is
-wired in `.github/workflows/release.yml`, which packs the tarball, attaches it to the GitHub release,
-and publishes to npm once an `NPM_TOKEN` secret exists. It is running in production on shobyde.com.
+and `chrome-ai` entry points, their peer dependency and the demo's worker are gone. Releasing is
+wired in `.github/workflows/release.yml`: a version tag packs the tarball, attaches it to the GitHub
+release, and stages the package on npm for approval, so no CI-held credential can publish on its own.
+It is running in production on shobyde.com.
 
 MIT.

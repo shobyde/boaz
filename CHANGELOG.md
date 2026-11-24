@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.8.1 - 2026-11-24
+
+- Releases are staged, not published, by CI. `npm stage publish` needs no 2FA, so the workflow can
+  run unattended while the publish itself stays a human act: the tag stages a version, the summary on
+  the run carries the stage id, and `npm stage approve <stage-id>` (with an authenticator) is what
+  makes it installable. Auth is a trusted publisher over OIDC when `NPM_TRUSTED_PUBLISHER` is `true`,
+  otherwise an `NPM_TOKEN` granular token, which no longer needs 2FA bypass because nothing in the
+  pipeline publishes directly.
+- The tarball is now attached to the GitHub release before the npm step, so a failed stage still
+  leaves an installable release instead of skipping the upload.
+- `bin[boaz]` lost its `./` prefix. npm stripped it on every publish and reported the value as
+  "invalid and removed", which read as though the CLI had been dropped from the package.
+
 ## 0.8.0 - 2026-11-24
 
 - Facts can now be ranked, not only joined. `rankFacts(facts, { relation, attribute, direction })`

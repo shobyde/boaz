@@ -8,3 +8,5 @@ apps/demo/dist/
 *.tgz
 packages/boaz/README.md
 packages/boaz/LICENSE
+stage-output.txt
+.npmrc

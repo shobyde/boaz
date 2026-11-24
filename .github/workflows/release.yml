@@ -1,10 +1,27 @@
 name: release
 
-# Cuts a GitHub release for every version tag, with the tarball the site installs
-# attached, and publishes to npm once an NPM_TOKEN secret exists (a granular npm
-# access token with read and write on the boaz package). Without the
-# token the npm step is skipped instead of failing, so the tag still produces a
-# green release and an installable tarball.
+# Cuts a GitHub release for every version tag with the tarball the site installs
+# attached, and STAGES the package on npm instead of publishing it.
+#
+# Staging (`npm stage publish`) needs no 2FA and works with any token type, so a
+# CI runner can do it unattended. The publish itself stays a human act: someone
+# runs `npm stage approve <stage-id>` with their authenticator. A staged version
+# is not installable and not visible to anyone until that happens.
+#
+# Two ways to authenticate the staging step, in order of preference:
+#   1. trusted publishing: the repo variable NPM_TRUSTED_PUBLISHER is "true" and
+#      npmjs.com has this workflow as a trusted publisher for boaz, with stage
+#      publishing allowed (npm trust github boaz --file release.yml
+#      --allow-stage-publish). No secret exists at all.
+#   2. a granular access token in the NPM_TOKEN secret. It does NOT need 2FA
+#      bypass: bypass is only needed to publish directly, which this workflow
+#      never does. Scope it to boaz, read and write.
+#   3. neither: the npm step is skipped, the run stays green, and the tarball on
+#      the GitHub release is the install path.
+#
+# Staging requires the package to already exist on the registry, so the very
+# first version was published by hand (`npm publish --access public`, one 2FA
+# prompt) and every version after it is staged here.
 
 on:
   push:
@@ -14,10 +31,10 @@ on:
 
 permissions:
   contents: write # create the release and attach the tarball
-  id-token: write # provenance
+  id-token: write # provenance, and trusted publishing
 
 jobs:
-  publish:
+  stage:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +45,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          # 24 ships npm 11.x: trusted publishing (OIDC) needs CLI 11.5.1+
+          # 24 ships npm 11.x: npm stage and trusted publishing need 11.5.1+
           node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
@@ -45,7 +62,7 @@ jobs:
             echo "tag $tag does not match package version $pkg"
             exit 1
           fi
-          echo "publishing $pkg"
+          echo "version $pkg"
 
       - name: Pack the tarball the site installs
         run: |
@@ -53,28 +70,7 @@ jobs:
           npm pack --pack-destination "$GITHUB_WORKSPACE"
           ls -l "$GITHUB_WORKSPACE"/boaz-*.tgz
 
-      - name: Publish to npm
-        working-directory: packages/boaz
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          # Three ways in, in order of preference:
-          #   1. a token secret (bootstrap, or a bypass-2FA granular token)
-          #   2. trusted publishing: the repo variable NPM_TRUSTED_PUBLISHER is
-          #      "true" and npmjs.com has this workflow as a trusted publisher,
-          #      so the CLI authenticates over OIDC and there is no secret at all
-          #   3. nothing configured: keep the tarball-only release green
-          if [ -n "$NODE_AUTH_TOKEN" ]; then
-            echo "publishing with the NPM_TOKEN secret"
-            npm publish --access public --provenance
-          elif [ "${{ vars.NPM_TRUSTED_PUBLISHER }}" = "true" ]; then
-            echo "publishing with trusted publishing (OIDC)"
-            unset NODE_AUTH_TOKEN
-            npm publish --access public --provenance
-          else
-            echo "No npm credential. Skipping npm publish: the tarball on the GitHub release is the install path."
-          fi
-
+      # Before staging, so a failed stage still leaves an installable release.
       - name: Attach the tarball to the GitHub release
         if: github.ref_type == 'tag'
         env:
@@ -88,3 +84,66 @@ jobs:
           else
             gh release create "$tag" "$tgz" --title "boaz ${tag#v}" --generate-notes
           fi
+
+      - name: Stage on npm for human approval
+        id: stage
+        working-directory: packages/boaz
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -o pipefail
+          version=$(node -p "require('./package.json').version")
+
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "staging with the NPM_TOKEN secret"
+            how="the NPM_TOKEN secret"
+          elif [ "${{ vars.NPM_TRUSTED_PUBLISHER }}" = "true" ]; then
+            echo "staging with trusted publishing (OIDC)"
+            unset NODE_AUTH_TOKEN
+            how="trusted publishing (OIDC)"
+          else
+            echo "staged=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::No npm credential configured, so ${version} was not staged. The tarball on the GitHub release is the install path."
+            {
+              echo "### Not staged on npm"
+              echo ""
+              echo "No npm credential: neither a \`NPM_TOKEN\` secret nor the"
+              echo "\`NPM_TRUSTED_PUBLISHER\` repo variable is set. The tarball on the"
+              echo "GitHub release is the install path."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # No 2FA prompt on staging, by design; approval is where the human enters.
+          # Not left to bash -e: a failed stage must say so in the summary.
+          if ! npm stage publish --access public --provenance 2>&1 | tee stage-output.txt; then
+            echo "staged=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Staging ${version} failed"
+              echo ""
+              echo '```'
+              grep -iE 'npm (error|warn)' stage-output.txt | tail -20
+              tail -n 5 stage-output.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+          echo "staged=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Staged ${version} on npm, awaiting approval"
+            echo ""
+            echo "Staged with ${how}. Nothing is installable until you approve it:"
+            echo ""
+            echo '```'
+            tail -n 12 stage-output.txt
+            echo '```'
+            echo ""
+            echo "Approve or reject it yourself, with your authenticator:"
+            echo ""
+            echo '```'
+            echo "npm stage list boaz"
+            echo "npm stage approve <stage-id>   # publishes ${version}"
+            echo "npm stage reject <stage-id>    # throws it away"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
