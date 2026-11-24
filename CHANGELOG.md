@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.5 - 2026-11-24
+
+- `summarise()` no longer pads to k. Once at least one sentence is on topic, a candidate with zero
+  relevance is not quoted to fill the answer: a summary that adds three off-topic sentences claims
+  coverage the corpus does not have. Pass `stopAtZeroRelevance: false` for the older behaviour.
+
 ## 0.7.4 - 2026-11-24
 
 - `summarise()` and `splitSentences()` in `core/summarise.ts`: extractive summarisation over any sentence

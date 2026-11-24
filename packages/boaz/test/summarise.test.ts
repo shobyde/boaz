@@ -43,9 +43,15 @@ describe('summarise', () => {
   });
 
   it('answers with sentences from different documents', () => {
-    const result = summarise(corpus, { query: 'what does he write about', k: 3 });
+    const result = summarise(corpus, { query: 'summarise this', k: 3 });
     expect(result.picks).toHaveLength(3);
     expect(new Set(result.picks.map((pick) => pick.source)).size).toBe(3);
+  });
+
+  it('stops instead of padding with a sentence that does not match', () => {
+    const result = summarise(corpus, { query: 'jellyfin', k: 3 });
+    expect(result.picks).toHaveLength(1);
+    expect(result.picks[0].source).toBe('jellyfin-post');
   });
 
   it('follows the question when it names something', () => {

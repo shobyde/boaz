@@ -52,6 +52,13 @@ export interface SummaryOptions {
   maxPerSource?: number;
   /** Sentences shorter than this (in characters) are not summarised. Default 24. */
   minLength?: number;
+  /**
+   * Stop before quoting a sentence with no relevance to the question, once at
+   * least one pick has some. A summary that pads to k by adding off-topic
+   * sentences claims coverage the corpus does not have; for "which posts cover
+   * X" the honest answer is fewer sentences. Default true.
+   */
+  stopAtZeroRelevance?: boolean;
 }
 
 export interface SummaryResult {
@@ -104,6 +111,7 @@ export function summarise(
   const lambda = Math.min(1, Math.max(0, options.lambda ?? 0.7));
   const maxPerSource = Math.max(1, options.maxPerSource ?? 1);
   const minLength = options.minLength ?? 24;
+  const stopAtZero = options.stopAtZeroRelevance ?? true;
 
   const candidates = sentences.filter(
     (sentence) => sentence.text && sentence.text.trim().length >= minLength,
@@ -140,15 +148,14 @@ export function summarise(
     Object.keys(queryVector).length === 0 ? 1 : cosine(queryVector, vector),
   );
   const unguided = Object.keys(queryVector).length === 0;
+  const onTopic = relevance.some((value) => value > 0);
 
   const picked: number[] = [];
   const perSource = new Map<string, number>();
   const used = new Set<number>();
 
   while (picked.length < Math.min(k, candidates.length)) {
-    let bestIndex = -1;
-    let bestScore = -Infinity;
-    let bestNovelty = 0;
+    const eligible: { index: number; relevance: number; novelty: number }[] = [];
 
     for (let index = 0; index < candidates.length; index += 1) {
       if (used.has(index)) continue;
@@ -159,22 +166,37 @@ export function summarise(
       for (const selected of picked) {
         nearest = Math.max(nearest, cosine(vectors[index], vectors[selected]));
       }
-      const novelty = 1 - nearest;
-      const score = lambda * relevance[index] + (1 - lambda) * novelty;
-      if (score > bestScore) {
-        bestScore = score;
-        bestIndex = index;
-        bestNovelty = novelty;
-      }
+      eligible.push({ index, relevance: relevance[index], novelty: 1 - nearest });
     }
 
-    if (bestIndex === -1) break;
-    used.add(bestIndex);
-    picked.push(bestIndex);
-    perSource.set(candidates[bestIndex].source, (perSource.get(candidates[bestIndex].source) ?? 0) + 1);
-    (candidates[bestIndex] as SummaryPick).relevance = round(relevance[bestIndex]);
-    (candidates[bestIndex] as SummaryPick).novelty = round(bestNovelty);
-    (candidates[bestIndex] as SummaryPick).score = round(bestScore);
+    if (eligible.length === 0) break;
+    // Pad only when the corpus covers nothing at all: then the question is
+    // effectively unguided and diverse sentences are the honest answer. When it
+    // does cover the question, stop rather than quote a sentence that does not.
+    if (
+      stopAtZero &&
+      picked.length > 0 &&
+      onTopic &&
+      !eligible.some((row) => row.relevance > 0)
+    ) {
+      break;
+    }
+
+    // Classic MMR: relevance minus the closest similarity to a pick, both as
+    // cosines in the same space. Scoring novelty as `1 - similarity` instead
+    // looks equivalent and is not: unrelated sentences still share a stopword,
+    // so novelty sits near 0.95 for every candidate and drowns relevance, which
+    // is what makes the second pick drift off the question.
+    const scaled = penalise(eligible, lambda);
+    let best = scaled[0];
+    for (const candidate of scaled) if (candidate.score > best.score) best = candidate;
+
+    used.add(best.index);
+    picked.push(best.index);
+    perSource.set(candidates[best.index].source, (perSource.get(candidates[best.index].source) ?? 0) + 1);
+    (candidates[best.index] as SummaryPick).relevance = round(best.relevance);
+    (candidates[best.index] as SummaryPick).novelty = round(best.novelty);
+    (candidates[best.index] as SummaryPick).score = round(best.score);
   }
 
   return {
@@ -183,6 +205,17 @@ export function summarise(
     terms,
     unguided,
   };
+}
+
+/** lambda * relevance - (1 - lambda) * closest similarity to a pick. */
+function penalise(
+  rows: { index: number; relevance: number; novelty: number }[],
+  lambda: number,
+): { index: number; relevance: number; novelty: number; score: number }[] {
+  return rows.map((row) => ({
+    ...row,
+    score: lambda * row.relevance - (1 - lambda) * (1 - row.novelty),
+  }));
 }
 
 function round(value: number): number {
