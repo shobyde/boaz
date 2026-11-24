@@ -1,4 +1,4 @@
-import { useRegisterCapability } from 'boaz/react';
+import { useRegisterCapability } from '@shobyde/boaz/react';
 import { reportMonths, money } from '../data.js';
 import { useDemo, invoices } from '../store.js';
 import { exportReport } from '../features/reports/capabilities.js';

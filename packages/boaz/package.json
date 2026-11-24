@@ -1,5 +1,5 @@
 {
-  "name": "boaz",
+  "name": "@shobyde/boaz",
   "version": "0.8.1",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
@@ -64,6 +64,9 @@
   },
   "bin": {
     "boaz": "dist/cli/index.js"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "files": [
     "dist",

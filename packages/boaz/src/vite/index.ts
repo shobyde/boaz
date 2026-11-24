@@ -61,7 +61,7 @@ export function boaz(options: BoazPluginOptions = {}): Plugin {
   };
 
   return {
-    name: 'boaz',
+    name: '@shobyde/boaz',
     enforce: 'pre',
 
     configResolved(resolved) {

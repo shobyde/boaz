@@ -1,4 +1,4 @@
-import { defineCapability } from 'boaz/core';
+import { defineCapability } from '@shobyde/boaz/core';
 
 export const deleteAll = defineCapability({
   id: 'documents.delete_all',

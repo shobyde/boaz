@@ -1,4 +1,4 @@
-import { useRegisterCapability } from 'boaz/react';
+import { useRegisterCapability } from '@shobyde/boaz/react';
 import { useDemo } from '../store.js';
 import { deleteAccount } from '../features/account/capabilities.js';
 

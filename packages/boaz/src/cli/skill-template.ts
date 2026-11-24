@@ -32,7 +32,7 @@ Declare it in a \`capabilities.ts\` next to the feature, not in a central file.
 Central files rot; co-located ones get updated with the feature.
 
 \`\`\`ts
-import { defineCapability } from 'boaz/core';
+import { defineCapability } from '@shobyde/boaz/core';
 
 export const openInvoices = defineCapability({
   id: 'billing.open_invoices',
@@ -169,7 +169,7 @@ intents with a \`must\` list are scored — a route or action has no copy to com
 \`\`\`js
 // agent-setup.mjs
 import manifest from './agent-manifest.json' with { type: 'json' };
-import { createRulesEngine } from 'boaz/rules';
+import { createRulesEngine } from '@shobyde/boaz/rules';
 
 export const capabilities = manifest.capabilities;
 export const answers = /* your rules */ [];

@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { boaz } from 'boaz/vite';
+import { boaz } from '@shobyde/boaz/vite';
 
 export default defineConfig({
   // WebLLM pulls its own chunks, so the worker has to be an ES module.

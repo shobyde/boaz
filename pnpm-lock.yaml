@@ -121,7 +121,7 @@ importers:
 
   apps/demo:
     dependencies:
-      boaz:
+      '@shobyde/boaz':
         specifier: workspace:*
         version: link:../../packages/boaz
       react:

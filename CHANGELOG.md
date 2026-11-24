@@ -2,6 +2,11 @@
 
 ## 0.8.1 - 2026-11-24
 
+- The package publishes as `@shobyde/boaz`. npm's typo-squatting filter refuses the unscoped name
+  outright (`Package name too similar to existing packages boom,b4a,btoa,soap,coz,docz,koa`), so the
+  scope keeps the name and the registry accepts it. Imports move with it: `@shobyde/boaz/core`,
+  `@shobyde/boaz/rules` and the rest. The bin is still `boaz`, so `npx boaz init --skill` is
+  unchanged once the package is installed, and `publishConfig.access` is `public` in the manifest.
 - Releases are staged, not published, by CI. `npm stage publish` needs no 2FA, so the workflow can
   run unattended while the publish itself stays a human act: the tag stages a version, the summary on
   the run carries the stage id, and `npm stage approve <stage-id>` (with an authenticator) is what

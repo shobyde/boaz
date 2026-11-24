@@ -92,7 +92,23 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           set -o pipefail
+          name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
+
+          # A re-run of a tag whose version is already live has nothing to do.
+          # Staging it again would fail on the shared version index, and a red
+          # run for a release that is fine is worse than a no-op.
+          if npm view "${name}@${version}" version > /dev/null 2>&1; then
+            echo "staged=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::${name}@${version} is already published; nothing to stage."
+            {
+              echo "### ${name}@${version} is already published"
+              echo ""
+              echo "Nothing staged: this version already exists on the registry, so"
+              echo "re-running the tag is a no-op instead of a failure."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
 
           if [ -n "$NODE_AUTH_TOKEN" ]; then
             echo "staging with the NPM_TOKEN secret"

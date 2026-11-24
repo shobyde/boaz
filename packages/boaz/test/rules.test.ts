@@ -74,7 +74,7 @@ describe('KnowledgeBase', () => {
   it('finds a camel-case constant from the way a visitor types it', () => {
     // tokenize splits "TypeScript" into type+script, so the joined form has to
     // be indexed or the constant is unreachable from a lowercase query.
-    const camel = new KnowledgeBase({ facts: [fact('uses', 'boaz', 'TypeScript')] });
+    const camel = new KnowledgeBase({ facts: [fact('uses', '@shobyde/boaz', 'TypeScript')] });
     expect(camel.canonicalFor('typescript')).toEqual(['TypeScript']);
     expect(camel.canonicalFor('type')).toEqual(['TypeScript']);
   });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useRegisterCapability } from 'boaz/react';
+import { useRegisterCapability } from '@shobyde/boaz/react';
 import { team } from '../data.js';
 import { useDemo } from '../store.js';
 import { countMembers, inviteTeammate } from '../features/team/capabilities.js';

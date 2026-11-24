@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useAgentChat } from 'boaz/react';
-import type { ManifestCapability, TurnStep } from 'boaz/core';
+import { useAgentChat } from '@shobyde/boaz/react';
+import type { ManifestCapability, TurnStep } from '@shobyde/boaz/core';
 
 export interface AssistantProps {
   open: boolean;

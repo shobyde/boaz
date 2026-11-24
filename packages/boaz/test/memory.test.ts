@@ -117,7 +117,7 @@ describe('working memory: coverage', () => {
   });
 
   it('counts what it did not name', () => {
-    const mem = say(memory(), ['hobnob', 'readback', 'groundglass', 'boaz', 'typescript', 'python 3.10+']);
+    const mem = say(memory(), ['hobnob', 'readback', 'groundglass', '@shobyde/boaz', 'typescript', 'python 3.10+']);
     const coverage = mem.covered({ limit: 3 });
     expect(coverage.sentence).toMatch(/, and 3 more\.$/);
   });

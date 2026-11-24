@@ -1,4 +1,4 @@
-import { defineCapability } from 'boaz/core';
+import { defineCapability } from '@shobyde/boaz/core';
 import { ROUTES } from './routes';
 
 export const open = defineCapability({

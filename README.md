@@ -14,7 +14,7 @@ Most "AI in your app" implementations stream the DOM to a server, pay per token,
 - **Replies can stream, with provenance.** `streaming: { chunkChars, paceMs }` emits `delta` events on the same channel as tool steps, and a rule answer carries the goal, the terms it matched and the rule it applied.
 
 ```bash
-npm install boaz
+npm install @shobyde/boaz
 npx boaz init --skill     # writes the skill that keeps capabilities in sync
 npx boaz audit --probes agent-probes.json --module agent-setup.mjs
 npx boaz bench --probes agent-probes.json --module agent-setup.mjs --samples
@@ -32,12 +32,12 @@ npm install https://github.com/shobyde/boaz/releases/download/v0.7.0/boaz-0.7.0.
 
 | Subpath | What it is |
 | --- | --- |
-| `boaz/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic keyword engine |
-| `boaz/rules` | `KnowledgeBase` (facts + Datalog rules), `createRulesEngine()`, and the answer-rule contract that turns solutions into replies |
-| `boaz/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
-| `boaz/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
-| `boaz/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
-| `boaz/cli` | `verify`, `manifest`, `codes`, `audit`, `bench`, `init --skill`, and a self-check corpus runner |
+| `@shobyde/boaz/core` | Registry, JSON Schema validator, BM25 retrieval, prompt assembly, tool-call parser, the execution loop, and a deterministic keyword engine |
+| `@shobyde/boaz/rules` | `KnowledgeBase` (facts + Datalog rules), `createRulesEngine()`, and the answer-rule contract that turns solutions into replies |
+| `@shobyde/boaz/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
+| `@shobyde/boaz/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
+| `@shobyde/boaz/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
+| `@shobyde/boaz/cli` | `verify`, `manifest`, `codes`, `audit`, `bench`, `init --skill`, and a self-check corpus runner |
 
 One package, six entry points. `react` and `vite` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
 
@@ -46,7 +46,7 @@ One package, six entry points. `react` and `vite` are optional peers, so install
 Capabilities live next to the feature that owns the behaviour, not in a central file that rots.
 
 ```ts
-import { defineCapability } from 'boaz/core';
+import { defineCapability } from '@shobyde/boaz/core';
 
 export const filterInvoices = defineCapability({
   id: 'billing.filter_invoices',
@@ -77,7 +77,7 @@ export const filterInvoices = defineCapability({
 Prose answers "what is this page about". Rows and rules answer "which ones".
 
 ```ts
-import { KnowledgeBase, createRulesEngine, fact } from 'boaz/rules';
+import { KnowledgeBase, createRulesEngine, fact } from '@shobyde/boaz/rules';
 
 const knowledge = new KnowledgeBase({
   facts: [
@@ -132,7 +132,7 @@ which ones. A model cannot make that claim.
 // vite.config.ts
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { boaz } from 'boaz/vite';
+import { boaz } from '@shobyde/boaz/vite';
 
 export default defineConfig({
   plugins: [react(), boaz({ include: ['src/**/*.{ts,tsx}'] })],
@@ -142,8 +142,8 @@ export default defineConfig({
 ```tsx
 // app.tsx
 import manifest from 'boaz:manifest';
-import { AgentProvider } from 'boaz/react';
-import { createRulesEngine } from 'boaz/rules';
+import { AgentProvider } from '@shobyde/boaz/react';
+import { createRulesEngine } from '@shobyde/boaz/rules';
 
 <AgentProvider
   engine={createRulesEngine({ knowledge, answers, capabilities: manifest.capabilities })}
@@ -182,7 +182,7 @@ Capability metadata says what the app can do. It does not say what the page says
 hosted model, pass `readContext` and the runtime carries page text into the prompt under its own budget:
 
 ```js
-import { createDomContextReader } from 'boaz/dom';
+import { createDomContextReader } from '@shobyde/boaz/dom';
 
 const readContext = createDomContextReader({
   sections: [
@@ -215,14 +215,14 @@ can emit in CI.
 
 ## No React? The core is framework-free
 
-`boaz/react` is a convenience, not the contract. shobyde.com runs the same package in a
+`@shobyde/boaz/react` is a convenience, not the contract. shobyde.com runs the same package in a
 Vite page with no framework at all: it imports the generated manifest, registers the handlers, and
 renders its own panel.
 
 ```js
 import manifest from 'boaz:manifest';
-import { AgentRuntime, registry } from 'boaz/core';
-import { createRulesEngine } from 'boaz/rules';
+import { AgentRuntime, registry } from '@shobyde/boaz/core';
+import { createRulesEngine } from '@shobyde/boaz/rules';
 import { siteCapabilities } from './capabilities.js';
 
 for (const capability of siteCapabilities) registry.register(capability);

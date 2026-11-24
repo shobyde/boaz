@@ -10,7 +10,7 @@
     "preview": "vite preview --port 4173"
   },
   "dependencies": {
-    "boaz": "workspace:*",
+    "@shobyde/boaz": "workspace:*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.18.6"
