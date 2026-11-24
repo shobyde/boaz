@@ -12,8 +12,7 @@ const STOPWORDS = new Set([
   'should', 'could', 'may', 'might', 'must',
   // Quantifiers are never the subject. "How much has he written?" was matching a
   // rule about project stacks and answering "No project stack lists much."
-  'much', 'many', 'more', 'most', 'less', 'few', 'several', 'enough', 'all', 'any', 'some',
-  'both', 'each', 'every', 'anything', 'something', 'everything', 'nothing', 'long', 'often',
+  'much', 'many',
   'please', 'want', 'wants', 'need', 'needs', 'would', 'like', 'help', 'user', 'users',
 ]);
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.3 — 2026-11-23
+
+- Narrow 0.6.2 to `much` and `many`. Treating `more`, `about`-style quantifiers as stopwords broke
+  "more about groundglass", which needs "more about" to reach the expand action.
+- 115 tests.
+
 ## 0.6.2 — 2026-11-23
 
 - Quantifiers are stopwords. "How much has he written?" was matching the project-stack rule through the
