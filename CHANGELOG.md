@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.9 — 2026-11-24
+
+- `analyzeQuestion(query, { subjects, attributes })` in `client-agent/core`
+  classifies a question's shape (`who`, `what`, `where`, `when`, `how-many`,
+  `which`, `why`, `compare`, `unknown`) from ordered cue patterns, and fills the
+  slots a router acts on: the declared subjects it names (matched through
+  `tokenize`, so `SQLite` and `sqlite` agree), the attribute asked about
+  (stack, writing, contact, count, date, location, identity, reason, projects),
+  a recency qualifier, whether it refers back instead of naming something, and
+  the content words nothing accounted for.
+- `contested` names the runner-up frame when it is within a point, because
+  "what year did Hobnob ship" is a `when` by one cue and the label is a
+  judgement, not a fact.
+- It classifies the question, not the request. "Take me to the archive" and
+  "copy his email" stay `unknown` so the engine's controller verbs keep
+  deciding that; a caller must not use `type` to override them.
+- 144 tests (9 new).
+
 ## 0.6.8 — 2026-11-23
 
 - `client-agent/probes` is its own entry point. `client-agent/build` re-exports

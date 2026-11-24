@@ -11,6 +11,8 @@ export {
 } from './schema.js';
 export type { SchemaErrorDetail, SchemaValidation } from './schema.js';
 export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js';
+export { analyzeQuestion } from './question.js';
+export type { QuestionAnalysis, QuestionSlots, QuestionType, AnalyzeOptions } from './question.js';
 export type { ScoredCapability, RetrieverOptions } from './retriever.js';
 export { buildSystemPrompt, buildToolSpecs, estimateTokens } from './prompt.js';
 export type { PromptInput } from './prompt.js';
