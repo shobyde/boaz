@@ -28,7 +28,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # 24 ships npm 11.x: trusted publishing (OIDC) needs CLI 11.5.1+
+          node-version: 24
           cache: pnpm
           registry-url: https://registry.npmjs.org
 
@@ -54,14 +55,25 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/boaz
-        run: |
-          if [ -z "$NODE_AUTH_TOKEN" ]; then
-            echo "No NPM_TOKEN secret. Skipping npm publish: the tarball on the GitHub release is the install path."
-            exit 0
-          fi
-          npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          # Three ways in, in order of preference:
+          #   1. a token secret (bootstrap, or a bypass-2FA granular token)
+          #   2. trusted publishing: the repo variable NPM_TRUSTED_PUBLISHER is
+          #      "true" and npmjs.com has this workflow as a trusted publisher,
+          #      so the CLI authenticates over OIDC and there is no secret at all
+          #   3. nothing configured: keep the tarball-only release green
+          if [ -n "$NODE_AUTH_TOKEN" ]; then
+            echo "publishing with the NPM_TOKEN secret"
+            npm publish --access public --provenance
+          elif [ "${{ vars.NPM_TRUSTED_PUBLISHER }}" = "true" ]; then
+            echo "publishing with trusted publishing (OIDC)"
+            unset NODE_AUTH_TOKEN
+            npm publish --access public --provenance
+          else
+            echo "No npm credential. Skipping npm publish: the tarball on the GitHub release is the install path."
+          fi
 
       - name: Attach the tarball to the GitHub release
         if: github.ref_type == 'tag'
