@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.8 — 2026-11-23
+
+- Verb boost now feeds the scores that confidence, margins and suggestions use, instead of only the
+  sort order, so "read the newest article" stops losing to the card with the same nouns.
+- A navigation request resolves to the best route that clears the threshold, even when an action about
+  the same noun looks confident ("show me the blog" opened the newest article card).
+- A two-word question no longer inherits the previous rule: "where is he based?" was firing the last
+  project rule because short queries were treated as ellipsis.
+- "see …" counts as a controller request, so the archives question reaches the archive action.
+- 114 tests.
+
 ## 0.5.7 — 2026-11-23
 
 - Answer rules stay out of controller requests. "Show me the archive" and "open the newest article"

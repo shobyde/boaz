@@ -119,7 +119,7 @@ const FIELD = 'field';
  * newest article") is asking the app to do something, not asking the knowledge
  * base a question. Answer rules stay out of the way so the capability decides.
  */
-const CONTROLLER = /^(show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate)\b/i;
+const CONTROLLER = /^(show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate|see)\b/i;
 
 /** "and…", "what about…", "his…" and bare continuations lean on the last turn. */
 const FOLLOW_UP = /^(and|also|what about|how about|then|more|why)\b|^(his|her|their|its)\b/i;
@@ -286,8 +286,11 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       // Pick the rule before resolving terms: a rule with steps does not know
       // its vocabulary until the tool has run, so retrieval must use the words
       // the visitor typed, not the constants the page happens to declare.
-      const short = tokenize(query).length <= 2;
-      const hint = memoryEnabled && (followUp || short) && fields.length === 0;
+      // A short question is still a question: "where is he based?" must not
+      // inherit the previous rule just because it has two words.
+      const shortEllipsis =
+        tokenize(query).every((word) => ELLIPSIS_WORDS.has(word)) && fields.length === 0;
+      const hint = memoryEnabled && (followUp || shortEllipsis) && shortEllipsis;
       const retrieval = [
         hint ? memory.ruleId : '',
         hint ? memory.recentQueries.slice(-2).join(' ') : '',

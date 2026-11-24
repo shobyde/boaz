@@ -243,26 +243,26 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       const ranked = index.search(query, { limit: 3, boost: false });
       const [queryVerb] = tokenize(query);
       if (queryVerb && ACTION_VERBS.has(queryVerb)) {
-        ranked.sort(
-          (a, b) =>
-            b.score * verbBoost(b.capability.id, b.capability.title, queryVerb) -
-            a.score * verbBoost(a.capability.id, a.capability.title, queryVerb),
-        );
+        // Bake the boost into the score: confidence, margins and the fallback
+        // list must all see the same numbers the sort used.
+        for (const entry of ranked) {
+          entry.score *= verbBoost(entry.capability.id, entry.capability.title, queryVerb);
+        }
+        ranked.sort((a, b) => b.score - a.score);
       }
       const top = ranked[0];
       const second = ranked[1];
-      const confident =
-        top !== undefined && top.score >= threshold && (!second || top.score >= second.score * margin);
-      // "Take me to X" is a different question from "what is X": when the visitor
-      // asks for a place, the best route is the answer even if an action or query
-      // about the same thing scores just as high.
-      if (!confident && NAVIGATE.test(query) && !NAMED_THING.test(query)) {
+      // "Show me the blog" asks for a place. If a route clears the threshold, it
+      // is the answer, whether or not a card about the same noun scores higher.
+      if (NAVIGATE.test(query) && !NAMED_THING.test(query)) {
         const route = ranked.find(
           (entry) => byId.get(entry.capability.id)?.kind === 'route' && entry.score >= threshold,
         );
         if (route) return { text: callTool(route.capability.id, {}) };
       }
 
+      const confident =
+        top !== undefined && top.score >= threshold && (!second || top.score >= second.score * margin);
       // "Who is Sho" is a question, so a knowledge answer within reach of a route
       // should be the answer; the route can still be offered afterwards.
       const asked = /^(who|what|when|where|why|how|which|does|do|is|are|can|has|have|tell me)\b/i.test(
