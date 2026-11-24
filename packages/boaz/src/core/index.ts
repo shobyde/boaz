@@ -14,6 +14,8 @@ export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js
 export { analyzeQuestion } from './question.js';
 export { summarise, splitSentences } from './summarise.js';
 export { planRequest } from './plan.js';
+export { matchSkill, selectSkill, runSkill } from './skill.js';
+export type { Skill, SkillStep, SkillCheck, SkillCheckKind, SkillRun, SkillStepRecord, SkillCheckRecord, RunSkillOptions } from './skill.js';
 export { executePlan } from './execute.js';
 export type {
   PlanExecution,

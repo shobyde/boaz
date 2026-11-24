@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.9 - 2026-11-24
+
+- Declarative skills: `runSkill(skill, { call })`, `matchSkill`, `selectSkill`, and the `Skill` type
+  (trigger, steps, checks, stop condition). A skill is data plus the host's own `compose`/`explain`; the
+  runner owns ordering, passing one step's output into the next, and evaluating checks between them.
+- Checks are declarative too: `min-items`, `max-items`, `distinct`, `verbatim`, `non-empty`, each read
+  from a dot path into the step result and each keeping what it observed, so a failure is a number rather
+  than a shrug. `distinct` compares token sets (Jaccard), which is the metric a browser can afford.
+- `stop.onCheckFail: 'stop'` is the point of the type: a check guards the step after it, so a page too
+  short to summarise in three points stops before the step that would pad to three. The stopped check is
+  named in the record, and the remaining steps are reported as `check-failed`.
+- `step.input` passes one value from an earlier result as an argument (`{ step, path, as }`); a path that
+  resolves to nothing skips the step as `missing-input` instead of calling it with `undefined`.
+- A `verbatim` check reads the source from the same step result, which is why a summariser that can be
+  checked has to echo the text it read. Eleven tests in `test/skill.test.ts`.
+
 ## 0.7.8 - 2026-11-24
 
 - Recovery without a model: `PlannedStep.alternates` records the runner-ups for the same clause (ranked,
