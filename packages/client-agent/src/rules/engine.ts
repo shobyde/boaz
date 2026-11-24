@@ -114,6 +114,13 @@ export type RulesEngine = AgentEngine & {
 const ASKED = 'asked';
 const FIELD = 'field';
 
+/**
+ * A request that names a controller verb ("show me the archive", "open the
+ * newest article") is asking the app to do something, not asking the knowledge
+ * base a question. Answer rules stay out of the way so the capability decides.
+ */
+const CONTROLLER = /^(show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate)\b/i;
+
 /** "and…", "what about…", "his…" and bare continuations lean on the last turn. */
 const FOLLOW_UP = /^(and|also|what about|how about|then|more|why)\b|^(his|her|their|its)\b/i;
 
@@ -289,7 +296,9 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         .filter(Boolean)
         .join(' ');
 
-      const [best] = answers.length > 0 ? index.search(retrieval, { limit: 1, boost: false }) : [];
+      const controllerRequest = CONTROLLER.test(query);
+      const [best] =
+        answers.length > 0 && !controllerRequest ? index.search(retrieval, { limit: 1, boost: false }) : [];
       const rule = best ? answers.find((answer) => answer.id === best.capability.id) : undefined;
       const threshold = rule?.threshold ?? options.threshold ?? 1;
       const matched = rule && best && best.score >= threshold ? rule : undefined;

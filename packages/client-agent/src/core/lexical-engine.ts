@@ -12,7 +12,30 @@ export interface LexicalEngineOptions {
 const EMAIL = /[^\s@<>()"']+@[^\s@<>()"']+\.[^\s@<>()"']+/;
 
 /** Verbs that ask for a place, not an explanation. */
-const NAVIGATE = /^(take me|go to|jump to|scroll to|scroll down to|bring me|navigate to)\b/i;
+const NAVIGATE = /^(take me|go to|jump to|scroll to|scroll down to|bring me|navigate to|show me)\b/i;
+
+/**
+ * ...unless the same sentence asks for a specific thing at that place. "Show me
+ * the blog" is navigation; "show me the newest article card" is a card.
+ */
+const NAMED_THING = /\b(card|expand|print|download|copy|link|source|repo|site|archive|resume)\b/i;
+
+/**
+ * The visitor's verb should decide between capabilities that share a topic.
+ * "Expand the Hobnob card" must beat "Show a project card", and both read the
+ * same nouns.
+ */
+const ACTION_VERBS = new Set([
+  'show', 'open', 'expand', 'read', 'copy', 'download', 'print', 'visit', 'go', 'take',
+  'list', 'browse', 'find', 'scroll', 'jump', 'email',
+]);
+
+function verbBoost(capabilityId: string, title: string, queryVerb: string | undefined): number {
+  if (!queryVerb) return 1;
+  const [first] = tokenize(title);
+  if (first === queryVerb) return 1.35;
+  return tokenize(capabilityId).includes(queryVerb) ? 1.2 : 1;
+}
 
 function realUserMessages(request: EngineRequest): number[] {
   const indexes: number[] = [];
@@ -218,6 +241,14 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       // context, but it would make "take me to billing" look ambiguous while
       // the visitor is already on a billing screen.
       const ranked = index.search(query, { limit: 3, boost: false });
+      const [queryVerb] = tokenize(query);
+      if (queryVerb && ACTION_VERBS.has(queryVerb)) {
+        ranked.sort(
+          (a, b) =>
+            b.score * verbBoost(b.capability.id, b.capability.title, queryVerb) -
+            a.score * verbBoost(a.capability.id, a.capability.title, queryVerb),
+        );
+      }
       const top = ranked[0];
       const second = ranked[1];
       const confident =
@@ -225,11 +256,27 @@ export function createLexicalEngine(options: LexicalEngineOptions): AgentEngine 
       // "Take me to X" is a different question from "what is X": when the visitor
       // asks for a place, the best route is the answer even if an action or query
       // about the same thing scores just as high.
-      if (!confident && NAVIGATE.test(query)) {
+      if (!confident && NAVIGATE.test(query) && !NAMED_THING.test(query)) {
         const route = ranked.find(
           (entry) => byId.get(entry.capability.id)?.kind === 'route' && entry.score >= threshold,
         );
         if (route) return { text: callTool(route.capability.id, {}) };
+      }
+
+      // "Who is Sho" is a question, so a knowledge answer within reach of a route
+      // should be the answer; the route can still be offered afterwards.
+      const asked = /^(who|what|when|where|why|how|which|does|do|is|are|can|has|have|tell me)\b/i.test(
+        query,
+      );
+      if (!confident && asked) {
+        const knowledgeHit = ranked.find(
+          (entry) => byId.get(entry.capability.id)?.kind === 'knowledge' && entry.score >= threshold * 0.75,
+        );
+        const topScore = top?.score ?? 0;
+        if (knowledgeHit && knowledgeHit.score >= topScore * 0.85) {
+          const capability = byId.get(knowledgeHit.capability.id);
+          if (capability?.knowledge) return { text: capability.knowledge };
+        }
       }
 
       if (!top || !confident) {

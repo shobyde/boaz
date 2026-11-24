@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.5.7 — 2026-11-23
+
+- Answer rules stay out of controller requests. "Show me the archive" and "open the newest article"
+  are things the app should do, not questions for the knowledge base; a rule matching on the nouns
+  used to hijack them and call the wrong capability.
+- The keyword engine boosts a capability whose title opens with the visitor's verb ("expand" prefers
+  "Expand a project card" over "Show a project card"), and treats "show me the blog" as navigation
+  unless the sentence names a thing to show.
+- A question ("who is Sho") prefers a knowledge answer over a route within reach, instead of asking
+  the visitor to choose between an answer and a scroll.
+- 114 tests.
+
 ## 0.5.6 — 2026-11-23
 
 - A query result summarized as a sentence names its records: an array of objects is described by its
