@@ -17,6 +17,16 @@ export { planRequest } from './plan.js';
 export { matchSkill, selectSkill, runSkill } from './skill.js';
 export type { Skill, SkillStep, SkillCheck, SkillCheckKind, SkillRun, SkillStepRecord, SkillCheckRecord, RunSkillOptions } from './skill.js';
 export { executePlan } from './execute.js';
+export { createWorkingMemory, isCoverageQuery } from './memory.js';
+export type {
+  WorkingMemory,
+  WorkingMemoryOptions,
+  MemoryTurn,
+  SalientEntity,
+  SalientTopic,
+  Coverage,
+  ObserveOptions,
+} from './memory.js';
 export type {
   PlanExecution,
   ExecutedStep,

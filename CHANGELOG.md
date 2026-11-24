@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.7.10 - 2026-11-24
+
+- Working memory with salience: `createWorkingMemory({ subjects, halfLife, minSalience, limit })` and
+  `isCoverageQuery(query)`. The engine still keeps one turn (rule, terms, entities); this keeps a session.
+- Salience is arithmetic, not a ranking rule: a mention adds 1, every `halfLife` turns (default 2.5) halves
+  it, and anything under `minSalience` (0.2) leaves the working set. A repeated subject therefore outlives
+  a one-off mention, and a one-off mention is gone about six turns later. `salient()` returns the numbers,
+  so a host can show them.
+- `context()` hands `analyzeQuestion` the most salient subject and the items the last answer listed, so a
+  pointer ("its stack") resolves against the conversation rather than the previous sentence.
+- `covered()` answers "what did we cover" from the session, not the working set: it uses a quarter of the
+  decay floor so a subject the working set has released still appears in the recap, and it composes the
+  sentence in the order things came up while `entities` stays ranked. Mentions are logged apart from the
+  verbatim turn window, so recapping after twenty turns does not know only the last twelve.
+- `isCoverageQuery` is a closed phrase list ("what did we cover", "where were we", "recap this chat"),
+  the same trade the synonym table makes: a phrasing outside it is not recognised and routes elsewhere.
+- Ceiling: salience is frequency plus recency, so one mention of the subject the visitor cares about loses
+  to a subject named incidentally three times, and the recap is a list of subjects, not a summary of
+  claims. Sixteen tests in `test/memory.test.ts`.
+
 ## 0.7.9 - 2026-11-24
 
 - Declarative skills: `runSkill(skill, { call })`, `matchSkill`, `selectSkill`, and the `Skill` type
