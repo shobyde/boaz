@@ -110,7 +110,14 @@ export function createPreferenceMemory({ preferences }: { preferences: Preferenc
         .map((entry) => `prefers(${entry.id}, ${entry.value})`);
     },
     reset(id) {
-      history = id === undefined ? [] : history.filter((entry) => entry.id !== String(id));
+      if (id === undefined) {
+        // A full reset is a new session: turn numbers start again, so a recap
+        // after a reset cannot cite a turn from the session before it.
+        history = [];
+        turn = 0;
+        return;
+      }
+      history = history.filter((entry) => entry.id !== String(id));
     },
   };
 }

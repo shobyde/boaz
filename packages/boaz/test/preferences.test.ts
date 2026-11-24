@@ -64,6 +64,14 @@ describe('preferences: stated values become facts', () => {
     expect(memory.get('citations')).toBeNull();
   });
 
+  it('starts turn numbering again after a full reset', () => {
+    const memory = store();
+    memory.record('register', 'terse');
+    memory.record('register', 'normal');
+    memory.reset();
+    expect(memory.record('register', 'explanatory')?.turn).toBe(1);
+  });
+
   it('normalises case and spacing so one value has one spelling', () => {
     const memory = store();
     expect(memory.record('register', '  Terse ')).not.toBeNull();

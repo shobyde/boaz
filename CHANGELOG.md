@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.7.12 - 2026-11-24
+
+- `reset()` with no argument starts a new session, so turn numbering restarts. Found by the site's
+  preference suite: a recap cited "turn 3" for a preference stated in turn 1 of that session, because the
+  counter outlived the history it numbered.
+
 ## 0.7.11 - 2026-11-24
 
 - Stated preferences as facts: `createPreferenceMemory({ preferences })` keeps what the visitor asked for
