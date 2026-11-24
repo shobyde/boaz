@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.8 - 2026-11-24
+
+- Recovery without a model: `PlannedStep.alternates` records the runner-ups for the same clause (ranked,
+  never a route, never one that needs an argument the sentence did not give), and `executePlan` tries them
+  when the chosen capability throws or returns nothing. The step record keeps every attempt
+  (`attempts: [{ capabilityId, outcome }]`) and the report says which one it tried, so a visitor reads
+  "read the newest article failed, so I tried show the newest article card instead." instead of a failure.
+- `ExecuteOptions.runAlternate` is the hook that makes recovery real for a host that routes on text:
+  re-sending the visitor's words would route to the capability that just failed.
+- `AgentRuntime.runCapability(id, args)` runs one capability by id through the same validation,
+  confirmation and handler path `send` uses, which is what the site panel passes as `runAlternate`.
+- An empty result means a handler produced nothing (`undefined`, `null`, `''`). An empty array is an
+  answer, not a failure, so a legitimate "no project lists Cobol" is not replaced by an unrelated result.
+- A failed step no longer ends the record: the remaining steps are reported as `previous-failed`, so the
+  summary names everything the failure cost. Seven tests in `test/recover.test.ts`.
+- Measured on the site's 14-task recovery suite: 8/14 before, 13/14 after. The miss is documented and kept:
+  when the only runner-up answers a different act on the same words ("how many posts" for "read the post"),
+  the machinery substitutes it unless the host ranks by effect, which no lexical score can do.
+
 ## 0.7.7 - 2026-11-24
 
 - `executePlan(plan, { run, currentRoute, maxSteps })`: runs a `planRequest` plan and reports each step.

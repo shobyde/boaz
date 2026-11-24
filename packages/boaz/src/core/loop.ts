@@ -356,6 +356,72 @@ export class AgentRuntime {
   }
 
   /**
+   * Runs one capability by id, through the same validation, confirmation and
+   * handler path `send` uses. A plan that has to recover needs this: re-sending
+   * the visitor's words would route to the capability that just failed, so the
+   * host has to be able to name the runner-up directly.
+   */
+  async runCapability(
+    capabilityId: string,
+    args: Record<string, unknown> = {},
+  ): Promise<{ ok: boolean; text: string; steps: TurnStep[]; result?: unknown }> {
+    const steps: TurnStep[] = [];
+    const push = (step: TurnStep) => {
+      steps.push(step);
+      this.emit({ type: 'step', step });
+    };
+    const capability = this.byId.get(capabilityId);
+    if (!capability) {
+      return { ok: false, text: `There is no ${capabilityId} capability here.`, steps };
+    }
+    const validation = validateParams(args, capability.paramsSchema);
+    if (!validation.valid) {
+      const errors = formatSchemaErrors(validation.errors);
+      push({ type: 'validation-error', capabilityId, errors, retried: false });
+      return { ok: false, text: `${capability.title} needs details the request did not carry.`, steps };
+    }
+    if (capability.requiresConfirmation) {
+      if (!this.options.confirm) {
+        return { ok: false, text: `${capability.title} needs confirmation, which is not available here.`, steps };
+      }
+      const approved = await this.options.confirm({
+        capabilityId: capability.id,
+        title: capability.title,
+        description: capability.description,
+        args: validation.value,
+      });
+      push({ type: 'confirmation', capabilityId, approved });
+      if (!approved) return { ok: false, text: 'Cancelled. Nothing was changed.', steps };
+    }
+    if (capability.kind === 'route') {
+      const route = capability.route ?? '/';
+      if (this.options.getSnapshot().currentRoute !== route) {
+        await this.options.navigate?.(route);
+      }
+      push({ type: 'navigate', capabilityId, route });
+      return { ok: true, text: `You're on ${route} now.`, steps };
+    }
+    const live: CapabilityDeclaration | undefined = this.options.registry.get(capability.id);
+    if (!live || typeof live.handler !== 'function') {
+      return { ok: false, text: `I couldn't reach the ${capability.title} control on this screen.`, steps };
+    }
+    try {
+      const result = await live.handler(validation.value, this.makeContext());
+      const surface = surfaceOf(result);
+      if (surface) {
+        push({ type: 'surface', capabilityId, messages: surface });
+        return { ok: true, text: '', steps, result };
+      }
+      push({ type: capability.kind === 'query' ? 'query' : 'action', capabilityId, args: validation.value, result } as TurnStep);
+      return { ok: true, text: '', steps, result };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      push({ type: 'error', message, capabilityId });
+      return { ok: false, text: `${capability.title} failed: ${message}`, steps };
+    }
+  }
+
+  /**
    * Reveals the finished reply as deltas. The reply is already computed, so this
    * is pacing, not inference: hosts that want instant text leave streaming off.
    */

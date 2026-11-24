@@ -25,7 +25,22 @@ export interface PlannedStep {
   needs: 'none' | 'route' | 'args';
   /** For a step that acts on a page: the route it needs to be on. */
   route?: string | null;
+  /**
+   * Runner-ups for the same clause, best first, excluding routes (a wrong page
+   * is worse than a refusal). The executor tries these when the chosen
+   * capability throws or returns nothing, which is the only recovery a
+   * model-free host can make: it knows what else could have served the words.
+   */
+  alternates?: PlannedAlternate[];
   score: number;
+}
+
+export interface PlannedAlternate {
+  capabilityId: string;
+  title: string;
+  kind: string;
+  /** Arguments read off the clause for this capability, or null when it needs one it never got. */
+  args: Record<string, unknown> | null;
 }
 
 export interface PlanOptions {
@@ -233,6 +248,20 @@ export function planRequest(query: string, options: PlanOptions): RequestPlan {
     const capability = owner ?? pick!.capability;
     const score = owner ? 0 : pick!.score;
     const args = inferArgs(capability, clause);
+    // Recovery is a ranked fact, not a guess: what else scored on these words,
+    // could run without an argument the sentence never gave, and is not a place.
+    const alternates: PlannedAlternate[] = String(capability.kind) === 'route'
+      ? []
+      : ranked
+        .filter((entry) => entry.capability.id !== capability.id && String(entry.capability.kind) !== 'route')
+        .map((entry) => ({
+          capabilityId: entry.capability.id,
+          title: entry.capability.title,
+          kind: String(entry.capability.kind),
+          args: inferArgs(entry.capability, clause),
+        }))
+        .filter((alternate) => alternate.args !== null)
+        .slice(0, 2);
     const previous = steps[steps.length - 1];
     const needs: PlannedStep['needs'] = !previous
       ? 'none'
@@ -250,6 +279,7 @@ export function planRequest(query: string, options: PlanOptions): RequestPlan {
       args,
       needs,
       ...(capability.route ? { route: capability.route } : {}),
+      ...(alternates.length > 0 && needs !== 'args' ? { alternates } : {}),
       score: Number(score.toFixed(3)),
     });
   }
