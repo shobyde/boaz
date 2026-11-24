@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.3 — 2026-11-24
+
+- Answers now reach the app's own vocabulary from the words a visitor actually types. `analyzeQuestion()`
+  ships two read-only tables: `LEMMAS` (shipped/shipping -> ship, built -> build, used -> use,
+  js -> javascript, ts -> typescript, postgres -> postgresql) and `DOMAIN_SYNONYMS` (toolset -> stack,
+  bio/background -> identity, touch -> contact). Entity matching canonicalises both sides, so "does
+  anything use js" resolves to the declared `JavaScript` and "what runs on postgres" to `PostgreSQL`.
+- A synonym can only map onto an attribute the app already declares, which is why a domain word never
+  makes a sentence name an entity it did not name, and why the word still counts as accounted for in
+  `mentions`.
+- The completed-work phrase that means "stack" grew from `written|built|... in|with` to include
+  `shipped`, `powered`, `runs`/`running` with `in|with|on|by`, and it now outranks the container word
+  `projects`: "which projects are shipped in typescript" asks about the stack, not the list.
+- Keys are the tokens `tokenize()` emits, not the surface words. `tokenize()` stems ("postgres" ->
+  `postgr`, "utilises" -> `utilis`), so a table written in surface form would be a second tokenizer,
+  which is precisely how constants and queries stopped agreeing in 0.5.1. A test asserts every key
+  round-trips through `tokenize()`.
+
 ## 0.7.2 — 2026-11-24
 
 - `analyzeQuestion()` fills `slots.combine`: how the two names a question contains are joined.

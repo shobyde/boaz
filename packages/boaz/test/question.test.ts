@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { analyzeQuestion } from '../src/core/question.js';
+import { DOMAIN_SYNONYMS, LEMMAS } from '../src/core/lemmas.js';
+import { tokenize } from '../src/core/retriever.js';
 
 const subjects = ['Hobnob', 'Readback', 'Groundglass', 'Python 3.10+', 'SQLite', 'the archive'];
 
@@ -184,5 +186,50 @@ describe('pointer resolution', () => {
     const excluded = analyzeQuestion('which projects use sqlite and not python', { subjects });
     expect(excluded.slots.combine).toBeNull();
     expect(excluded.slots.exclude).toEqual(['Python 3.10+']);
+  });
+});
+
+describe('the bundled vocabulary', () => {
+  const stack = ['Hobnob', 'JavaScript', 'PostgreSQL', 'TypeScript', 'Python 3.10+'];
+
+  it('keys every lemma by a token tokenize() emits', () => {
+    // A surface word used as a key would be a second tokenizer, which is the
+    // 0.5.1 bug: constants indexed one way, queries matched another. Some keys
+    // are only reachable through a suffix ("utilis" from "utilises"), so both
+    // spellings are checked.
+    for (const from of [...Object.keys(LEMMAS), ...Object.keys(DOMAIN_SYNONYMS)]) {
+      expect(tokenize(from).includes(from) || tokenize(`${from}es`).includes(from)).toBe(true);
+    }
+  });
+
+  it('reaches a declared name through the abbreviation a visitor types', () => {
+    expect(analyzeQuestion('does anything use js', { subjects: stack }).slots.entities).toEqual(['JavaScript']);
+    expect(analyzeQuestion('what runs on postgres', { subjects: stack }).slots.entities).toEqual(['PostgreSQL']);
+    expect(analyzeQuestion('which projects use ts', { subjects: stack }).slots.entities).toEqual(['TypeScript']);
+  });
+
+  it('does not expand an alias inside a longer word', () => {
+    expect(analyzeQuestion('which projects use charts', { subjects: stack }).slots.entities).toEqual([]);
+    expect(analyzeQuestion('does the site use json', { subjects: stack }).slots.entities).toEqual([]);
+  });
+
+  it('reads a synonym as the attribute the app declared', () => {
+    expect(analyzeQuestion('what is the toolset behind hobnob', { subjects: stack }).slots.attribute).toBe('stack');
+    expect(analyzeQuestion('what is his bio', { subjects: stack }).slots.attribute).toBe('identity');
+    expect(analyzeQuestion('what is his background', { subjects: stack }).slots.attribute).toBe('identity');
+    expect(analyzeQuestion('how do i get in touch', { subjects: stack }).slots.attribute).toBe('contact');
+    // And the synonym does not linger in mentions as an unexplained word.
+    expect(analyzeQuestion('what is the toolset behind hobnob', { subjects: stack }).slots.mentions).not.toContain('toolset');
+  });
+
+  it('reads a completed-work phrase as the stack', () => {
+    for (const query of [
+      'what is built on python',
+      'which projects are shipped in typescript',
+      'which project runs on postgres',
+      'which projects are powered by sqlite',
+    ]) {
+      expect(analyzeQuestion(query, { subjects: stack }).slots.attribute).toBe('stack');
+    }
   });
 });

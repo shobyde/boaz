@@ -1,4 +1,5 @@
 import { tokenize } from './retriever.js';
+import { canonicalTerm, DOMAIN_SYNONYMS, LEMMAS } from './lemmas.js';
 
 /**
  * The shape of a question, decided without a model.
@@ -310,6 +311,16 @@ function attributeIndex(extra: Record<string, string[]> | undefined): Map<string
       }
     }
   }
+  // A bundled synonym only ever points at an attribute the app already
+  // declares, so "toolset" reads as stack only where stack is one of the
+  // attributes in play. It is also what keeps the word out of `mentions`, which
+  // would otherwise report "toolset" as something no fact accounted for.
+  for (const [from, to] of [...Object.entries(DOMAIN_SYNONYMS), ...Object.entries(LEMMAS)]) {
+    if (index.has(from)) continue;
+    // `to` is either an attribute name ("stack") or a word inside one.
+    const name = merged[to] ? to : (index.get(to) ?? index.get(canonicalTerm(to)));
+    if (name) index.set(from, name);
+  }
   return index;
 }
 
@@ -367,12 +378,16 @@ const ANY_CUES = new Set(['or', 'either', 'versus', 'vs']);
  * this, so the slot, the span and the exclusion scope cannot disagree.
  */
 function subjectAt(subject: string, haystack: string[]): number {
-  const tokens = subjectTokens(subject);
-  const at = matchIndex(tokens, haystack);
+  // Both sides go through the bundled lemma table before comparison, so "js"
+  // reaches JavaScript and "postgres" reaches PostgreSQL without either name
+  // having to be spelled out in the app's manifest.
+  const tokens = subjectTokens(subject).map(canonicalTerm);
+  const words = haystack.map(canonicalTerm);
+  const at = matchIndex(tokens, words);
   if (at >= 0) return at;
-  const joined = tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, ''));
+  const joined = tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, '')).map(canonicalTerm);
   if (joined.length === 0 || joined.join(' ') === tokens.join(' ')) return -1;
-  return matchIndex(joined, haystack);
+  return matchIndex(joined, words);
 }
 
 /** Word index range of a subject name inside the query's plain words. */
@@ -574,14 +589,17 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
   }
   // "written in" asks which language, not about the writing: the token form
   // scored as `writing` and outranked nothing, so the phrase is read first.
-  const stackPhrase = /\b(?:written|built|coded|implemented|made) (?:in|with)\b/.test(text);
+  // "shipped in", "built on" and "powered by" are the same shape, and they are
+  // how visitors describe a finished stack without ever saying "stack".
+  const stackPhrase =
+    /\b(?:written|built|coded|implemented|made|shipped|powered|runs|running) (?:in|with|on|by)\b/.test(text);
   const winner =
     [...attributeHits.entries()].sort(
       (a, b) =>
         b[1] - a[1] || (ATTRIBUTE_PRIORITY[b[0]] ?? 0) - (ATTRIBUTE_PRIORITY[a[0]] ?? 0),
     )[0]?.[0] ?? null;
   const attribute =
-    stackPhrase && (!winner || winner === 'writing') ? 'stack' : winner;
+    stackPhrase && (!winner || winner === 'writing' || winner === 'projects') ? 'stack' : winner;
 
   const referenced =
     /\b(?:he|him|his|she|her|it|its|they|them|their|that|those)\b/.test(text) &&

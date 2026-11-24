@@ -12,6 +12,7 @@ export {
 export type { SchemaErrorDetail, SchemaValidation } from './schema.js';
 export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js';
 export { analyzeQuestion } from './question.js';
+export { LEMMAS, DOMAIN_SYNONYMS, canonicalTerm } from './lemmas.js';
 export type { Combine, QuestionAnalysis, QuestionSlots, QuestionType, AnalyzeOptions, Reference } from './question.js';
 export type { ScoredCapability, RetrieverOptions } from './retriever.js';
 export { buildSystemPrompt, buildToolSpecs, estimateTokens } from './prompt.js';
