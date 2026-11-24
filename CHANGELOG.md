@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.7.1 — 2026-11-24
+
+- `analyzeQuestion()` fills `slots.reference`: what a visitor pointed at instead of naming.
+  Three cues, resolved against an optional `context` (`{ items, subject }` carried from the last
+  turn): an ordinal position in the list the previous answer produced ("the second one", "number
+  two", "the last one"), a singular demonstrative standing in for the previous subject ("its
+  stack", "who built this"), and a truncated name ("ground" for Groundglass, "the arch" for the
+  archive). `slots.subject` falls back to the resolved value when the question named no subject.
+- Personal pronouns (`he`, `his`, `they`) are deliberately not resolved to a project: on a personal
+  site they refer to the person, and resolving "his stack" to the last project mentioned was the
+  first wrong answer this slot produced.
+- A relative clause is not a pointer: "the one that uses sqlite" is a description with a filter,
+  so it resolves to nothing rather than to whatever the previous turn was about.
+- A partial name is only read in a question. "read the newest post" opens with a controller verb,
+  so it stays a request for the read action rather than the Readback project that shares its
+  prefix.
+- Attribute reading learned "written in" / "built with" as a stack cue; the token form scored as
+  `writing` and answered the wrong slot.
+
 ## 0.7.0 — 2026-11-25
 
 - Renamed from `client-agent` to `boaz`. The name is the record: in Ruth 4 the transaction

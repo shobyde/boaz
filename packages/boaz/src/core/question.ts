@@ -35,6 +35,8 @@ export interface QuestionSlots {
   newest: 'newest' | 'oldest' | null;
   /** True when the question points back at something instead of naming it. */
   referenced: boolean;
+  /** The subject a pointer resolves to, or null when it points nowhere. */
+  reference: Reference | null;
   /**
    * Subjects named inside a negation scope: "python but not readback" excludes
    * Readback. A negated subject is never also an entity, because the visitor is
@@ -44,6 +46,24 @@ export interface QuestionSlots {
   /** Content words no subject or attribute accounted for. */
   mentions: string[];
 }
+
+/** How a visitor pointed back at something instead of naming it. */
+export interface Reference {
+  kind: 'ordinal' | 'pronoun' | 'partial';
+  /** The declared subject the pointer resolves to. */
+  value: string;
+  /** The words that pointed, kept for a trace line. */
+  cue: string;
+}
+
+/** What the previous turn left behind, for a pointer to resolve against. */
+export interface ReferenceContext {
+  /** Subjects in the order the previous answer listed them, for ordinals. */
+  items?: string[];
+  /** The subject the previous turn was about, for pronouns. */
+  subject?: string | null;
+}
+
 
 export interface QuestionAnalysis {
   type: QuestionType;
@@ -65,6 +85,8 @@ export interface AnalyzeOptions {
   subjects?: string[];
   /** Attribute words per app, merged over the defaults. */
   attributes?: Record<string, string[]>;
+  /** The previous turn's subject and listing, so a pointer can resolve. */
+  context?: ReferenceContext;
 }
 
 interface Cue {
@@ -275,9 +297,135 @@ function attributeIndex(extra: Record<string, string[]> | undefined): Map<string
 }
 
 /**
+ * Ordinal words that point at a position in the previous answer's list. The
+ * spelled-out number is the common form; digits show up as "number 2".
+ */
+const ORDINALS: Record<string, number> = {
+  first: 0,
+  '1st': 0,
+  one: 0,
+  second: 1,
+  '2nd': 1,
+  two: 1,
+  third: 2,
+  '3rd': 2,
+  three: 2,
+  fourth: 3,
+  '4th': 3,
+  four: 3,
+  fifth: 4,
+  '5th': 4,
+  five: 4,
+};
+
+/** A bare ordinal word counts only when it names a list item. */
+const ORDINAL_NOUN = '(?:one|project|item|entry|card|result|option|thing)';
+
+/**
+ * Singular pointers that can stand for a project. Personal pronouns (he, his,
+ * they) are excluded on purpose: on this site they refer to the person, and
+ * resolving "his stack" to the last project mentioned was the first wrong
+ * answer this slot produced.
+ */
+const OBJECT_PRONOUNS = new Set(['it', 'its', "it's", 'that', 'this', 'those', 'these']);
+
+/** A query that opens with one of these is a command, so a partial name is not a pointer. */
+const CONTROLLER_OPEN =
+  /^(?:show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate|see|filter|sort)\b/;
+
+/** The plain words of a query, used for prefix matching against subject names. */
+function plainWords(query: string): string[] {
+  return query
+    .toLowerCase()
+    .replace(/[^a-z0-9' ]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/**
+ * Resolves a pointer to a declared subject, or returns null.
+ *
+ * Three cues, in the order a reader would try them: an ordinal position in the
+ * list the last answer produced, a singular pronoun standing in for the last
+ * subject, then a truncated name ("ground" for Groundglass). Each needs the
+ * context that makes it meaningful, and returns null without it, which is the
+ * honest answer: "the second one" with no list behind it points nowhere.
+ */
+function resolveReference(
+  text: string,
+  query: string,
+  subjects: string[],
+  named: string[],
+  attributes: Map<string, string>,
+  context: ReferenceContext | undefined,
+): Reference | null {
+  // A question that names what it is about still points elsewhere with a
+  // pronoun: "does it use sqlite" names SQLite and points at the project.
+  const items = context?.items ?? [];
+  const previous = context?.subject ?? null;
+
+  const ordinalNoun = new RegExp(`\\b(?:the\\s+)?(${Object.keys(ORDINALS).join('|')})\\s+${ORDINAL_NOUN}\\b`);
+  const ordinalNumber = new RegExp(`\\bnumber\\s+(${Object.keys(ORDINALS).join('|')})\\b`);
+  const lastNoun = new RegExp(`\\b(?:the\\s+)?last\\s+${ORDINAL_NOUN}\\b`);
+  const ordinalMatch = text.match(ordinalNoun) ?? text.match(ordinalNumber);
+  if (ordinalMatch) {
+    // "the second one" only means something after a list.
+    if (items.length === 0) return null;
+    const index = ORDINALS[ordinalMatch[1]];
+    if (index === undefined || index >= items.length) return null;
+    return { kind: 'ordinal', value: items[index], cue: ordinalMatch[0].trim() };
+  }
+  const lastMatch = text.match(lastNoun);
+  if (lastMatch) {
+    if (items.length === 0) return null;
+    return { kind: 'ordinal', value: items[items.length - 1], cue: lastMatch[0].trim() };
+  }
+
+  const words = plainWords(text);
+  const pronounAt = words.findIndex((word) => OBJECT_PRONOUNS.has(word));
+  // "the one that uses sqlite" is a description, not a pointer: the demonstrative
+  // is a relative pronoun introducing a filter, so no antecedent answers it.
+  const RELATIVE_VERBS = new Set([
+    'is', 'are', 'was', 'were', 'has', 'have', 'had', 'does', 'do', 'did',
+    'use', 'uses', 'used', 'link', 'links', 'links', 'costs', 'cost', 'supports',
+    'runs', 'run', 'ships', 'ship', 'works', 'work', 'needs', 'need',
+  ]);
+  const relative =
+    pronounAt >= 0 &&
+    ['that', 'this', 'those', 'these'].includes(words[pronounAt]) &&
+    RELATIVE_VERBS.has(words[pronounAt + 1] ?? '');
+  const pronoun = pronounAt >= 0 && !relative ? words[pronounAt] : null;
+  if (pronoun && previous) {
+    return { kind: 'pronoun', value: previous, cue: pronoun };
+  }
+
+  // A partial name is the last resort, and only for a question that named no
+  // subject: "read the newest post" opens with a command and must reach the
+  // read action, not the Readback project that shares its first four letters.
+  if (named.length > 0 || CONTROLLER_OPEN.test(text.trim())) return null;
+  const frame = new Set([...FRAME_WORDS, ...PRONOUNS]);
+  for (const subject of subjects) {
+    for (const token of subjectTokens(subject)) {
+      if (token.length < 4 || allDigits(token)) continue;
+      const hit = words.find(
+        (word) =>
+          word.length >= 4 &&
+          word !== token &&
+          token.startsWith(word) &&
+          !frame.has(word) &&
+          !attributes.has(word),
+      );
+      if (hit) return { kind: 'partial', value: subject, cue: hit };
+    }
+  }
+
+  return null;
+}
+
+/**
  * Classifies a question and fills the slots a router can act on.
  *
- * Deterministic: same string, same analysis, no state between calls.
+ * Deterministic: same string and context, same analysis, no state between calls.
  */
 export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): QuestionAnalysis {
   const text = query.toLowerCase();
@@ -338,11 +486,16 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
     if (!attribute) continue;
     attributeHits.set(attribute, (attributeHits.get(attribute) ?? 0) + 1);
   }
-  const attribute =
+  // "written in" asks which language, not about the writing: the token form
+  // scored as `writing` and outranked nothing, so the phrase is read first.
+  const stackPhrase = /\b(?:written|built|coded|implemented|made) (?:in|with)\b/.test(text);
+  const winner =
     [...attributeHits.entries()].sort(
       (a, b) =>
         b[1] - a[1] || (ATTRIBUTE_PRIORITY[b[0]] ?? 0) - (ATTRIBUTE_PRIORITY[a[0]] ?? 0),
     )[0]?.[0] ?? null;
+  const attribute =
+    stackPhrase && (!winner || winner === 'writing') ? 'stack' : winner;
 
   const referenced =
     /\b(?:he|him|his|she|her|it|its|they|them|their|that|those)\b/.test(text) &&
@@ -366,7 +519,8 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
     ),
   ];
 
-  const subject = entities[0] ?? null;
+  const resolved = resolveReference(text, query, subjects, entities, attributes, options.context);
+  const subject = entities[0] ?? resolved?.value ?? null;
   const confidence = topScore === 0 ? 0 : Math.min(1, topScore / 3);
 
   return {
@@ -374,7 +528,17 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
     confidence,
     contested,
     questionShaped: type !== 'unknown' || /\?\s*$/.test(query),
-    slots: { subject, attribute, entities, newest, referenced, exclude, mentions },
-    cues: [...new Set(cues)],
+    slots: {
+      subject,
+      attribute,
+      entities,
+      newest,
+      referenced: referenced || resolved !== null,
+      reference: resolved,
+      exclude,
+      mentions,
+    },
+    cues: [...new Set([...cues, ...(resolved ? [`reference:${resolved.kind}`] : [])])],
   };
 }
+
