@@ -13,6 +13,7 @@ export type { SchemaErrorDetail, SchemaValidation } from './schema.js';
 export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js';
 export { analyzeQuestion } from './question.js';
 export { summarise, splitSentences } from './summarise.js';
+export { planRequest } from './plan.js';
 export type {
   SummarySentence,
   SummaryPick,
@@ -21,6 +22,7 @@ export type {
 } from './summarise.js';
 export { LEMMAS, DOMAIN_SYNONYMS, canonicalTerm } from './lemmas.js';
 export type { Combine, QuestionAnalysis, QuestionSlots, QuestionType, AnalyzeOptions, Reference } from './question.js';
+export type { PlannedStep, RequestPlan, PlanOptions } from './plan.js';
 export type { ScoredCapability, RetrieverOptions } from './retriever.js';
 export { buildSystemPrompt, buildToolSpecs, estimateTokens } from './prompt.js';
 export type { PromptInput } from './prompt.js';

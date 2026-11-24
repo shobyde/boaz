@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.6 - 2026-11-24
+
+- `planRequest(query, { capabilities })`: one sentence asking for two things becomes an ordered plan, and
+  the plan says what it could not do. The sentence is cut only at a connective whose right side opens with
+  its own controller verb, so "show me Hobnob and Readback" stays one request while "open the archive and
+  copy his email" becomes two steps. Each clause is routed on its own topic words (the verb is stripped
+  before retrieval and used as a ranking signal instead), and each step records the args read off its
+  clause plus a `needs` precondition: `route` when the step runs on a page an earlier step opens, `args`
+  when a required argument was never stated.
+- Declines instead of guessing: `single-request`, `no-second-verb` (the second half named an object, not a
+  request) or `unmapped-clause` with the clause that matched nothing. A verb plus an argument it consumes
+  outranks a capability that merely mentions the object; a request that names no specific thing prefers a
+  route, matching the engine's rule for navigation.
+- Eight tests in `test/plan.test.ts`. No model, no planner search: connector split, per-clause BM25, two
+  ranking rules.
+
 ## 0.7.5 - 2026-11-24
 
 - `summarise()` no longer pads to k. Once at least one sentence is on topic, a candidate with zero
