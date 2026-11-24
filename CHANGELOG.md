@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.2 — 2026-11-23
+
+- Quantifiers are stopwords. "How much has he written?" was matching the project-stack rule through the
+  word "much" and answering "No project stack lists much."
+- 115 tests.
+
 ## 0.6.1 — 2026-11-23
 
 - `requiresSubject: false` on an answer rule: a listing rule ("what has he built") has nothing to look
