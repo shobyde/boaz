@@ -23,6 +23,8 @@ export interface PlannedStep {
   args: Record<string, unknown> | null;
   /** What must have happened before this step can run. */
   needs: 'none' | 'route' | 'args';
+  /** For a step that acts on a page: the route it needs to be on. */
+  route?: string | null;
   score: number;
 }
 
@@ -247,6 +249,7 @@ export function planRequest(query: string, options: PlanOptions): RequestPlan {
       kind: String(capability.kind),
       args,
       needs,
+      ...(capability.route ? { route: capability.route } : {}),
       score: Number(score.toFixed(3)),
     });
   }

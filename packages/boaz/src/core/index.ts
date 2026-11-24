@@ -14,6 +14,14 @@ export { tokenize, CapabilityIndex, createCapabilityIndex } from './retriever.js
 export { analyzeQuestion } from './question.js';
 export { summarise, splitSentences } from './summarise.js';
 export { planRequest } from './plan.js';
+export { executePlan } from './execute.js';
+export type {
+  PlanExecution,
+  ExecutedStep,
+  ExecuteOptions,
+  StepStatus,
+  SkipReason,
+} from './execute.js';
 export type {
   SummarySentence,
   SummaryPick,

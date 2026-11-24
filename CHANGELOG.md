@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.7 - 2026-11-24
+
+- `executePlan(plan, { run, currentRoute, maxSteps })`: runs a `planRequest` plan and reports each step.
+  The executor owns ordering and preconditions; the host owns effects, so a planned step goes through the
+  same path (validation, confirmation, navigation) as a one-step request and cannot reach a control the
+  single-call path could not.
+- Preconditions are enforced, not assumed: a step with `needs: 'args'` is skipped as `missing-argument`
+  rather than run with a guessed enum value, and a step with `needs: 'route'` is skipped as
+  `not-on-route` when the page it needs did not open. The first failure stops the plan and is named.
+- `PlannedStep` now carries the `route` a step needs, so a host can check the precondition without
+  re-reading the manifest.
+- The report is one sentence naming what ran and what was refused, so a visitor sees "I did 2 things:
+  open the full archive, then copy the email address." instead of a trace they have to interpret.
+- Six tests in `test/execute.test.ts`.
+
 ## 0.7.6 - 2026-11-24
 
 - `planRequest(query, { capabilities })`: one sentence asking for two things becomes an ordered plan, and
