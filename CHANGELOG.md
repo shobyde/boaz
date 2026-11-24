@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.6 — 2026-11-23
+
+Testing comes with the package.
+
+- `client-agent audit --probes <file> --module <file>`: ask every probe, report the engine's own decision
+  (the rule that planned a tool call, the capability that ran, the knowledge paragraph quoted), exit 1 on a
+  miss. `--json` for CI.
+- `client-agent bench --probes <file> --module <file> [--samples]`: fidelity, paraphrase similarity with the
+  facts masked, opener variety, length spread, stability. Only intents with a `must` list are scored.
+- `agent-setup.mjs` contract: `createEngine()` plus optional `runCapability`, `answers`, `capabilities`.
+  `runCapability` is what lets a rule that reads a tool answer with a sentence in the harness.
+- `EngineMemory.planned`: which rule planned the call this turn. Without it a harness cannot tell
+  "the rule asked for projects.list" from "the keyword engine happened to pick projects.list".
+- `controllerVerbs`: apps add their own command verbs ("filter", "sort") so answer rules stay out of them.
+- A rule that joins `asked(?T)` is the only kind that waits for a subject; listing rules run when matched.
+- Default rule threshold scales with the number of rules (×0.35, floor 0.35): with one rule the best
+  possible phrase match scores ~1.2, so a flat 1.0 threshold silently dropped real matches.
+- The shipped skill now covers answers, phrasing and both commands; `init --skill` writes it.
+- 125 tests.
+
 ## 0.6.5 — 2026-11-23
 
 - `constants` option and `KnowledgeBase.declare()`: an app can declare the values a tool will return, so

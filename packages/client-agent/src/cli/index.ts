@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { buildManifest, extractCapabilities, type ExtractResult } from '../build/extract.js';
 import { formatDiagnostic, formatSummary, printCodes } from '../build/report.js';
 import { CLIENT_LLM_SKILL_MD } from './skill-template.js';
+import { runAudit } from './audit.js';
+import { runBench } from './bench.js';
 
 type FlagValue = string | true | string[];
 
@@ -20,6 +22,8 @@ Usage
   client-agent verify [dir] [--strict] [--json] [--include <glob>] [--exclude <glob>]
   client-agent manifest [dir] [--out <file>] [--check] [--include <glob>]
   client-agent codes [CODE]
+  client-agent audit --probes <file> --module <file> [--json] [--quiet]
+  client-agent bench --probes <file> --module <file> [--json <out>] [--samples]
   client-agent init [dir] --skill [--force]
   client-agent verify --self-check <fixtures-dir>
 
@@ -29,7 +33,13 @@ Commands
   manifest   Write agent-manifest.json (deterministic: sorted by id, no timestamp).
              --check compares against the file on disk instead of writing.
   codes      Print the diagnostic code table, or the detail for one code.
-  init       Install the repository skill that keeps capabilities in sync.
+  audit      Ask every probe and check it reaches the capability or rule it names.
+             Exit 1 on any miss, so it can gate a pull request.
+  bench      Score the copy: fidelity, paraphrase similarity, opener variety,
+             length spread, stability. Probes with the same "intent" are the
+             paraphrases of one question.
+  init       Install the repository skill that keeps capabilities in sync and
+             shows how to test what they answer.
 
 Options
   --include <glob>   Source glob, relative to dir. Repeatable. Default src/**/*.{ts,tsx,js,jsx}
@@ -42,7 +52,7 @@ Options
 function parseArgs(argv: string[]): Args {
   const flags = new Map<string, FlagValue>();
   const positionals: string[] = [];
-  const takesValue = new Set(['include', 'exclude', 'out', 'self-check']);
+  const takesValue = new Set(['include', 'exclude', 'out', 'self-check', 'probes', 'module', 'json']);
   const setFlag = (key: string, value: FlagValue) => {
     if (Array.isArray(value) || value === true) {
       flags.set(key, value);
@@ -316,6 +326,35 @@ async function main(): Promise<number> {
       }
       process.stdout.write(`${printCodes()}\n`);
       return 0;
+    }
+    case 'audit': {
+      const probes = single(args.flags, 'probes');
+      const module = single(args.flags, 'module');
+      if (!probes || !module) {
+        process.stderr.write('audit: --probes <file> and --module <file> are required\n');
+        return 2;
+      }
+      return runAudit({
+        probes,
+        module,
+        ...(args.flags.has('json') ? { json: true } : {}),
+        ...(args.flags.has('quiet') ? { quiet: true } : {}),
+      });
+    }
+    case 'bench': {
+      const probes = single(args.flags, 'probes');
+      const module = single(args.flags, 'module');
+      if (!probes || !module) {
+        process.stderr.write('bench: --probes <file> and --module <file> are required\n');
+        return 2;
+      }
+      const json = single(args.flags, 'json');
+      return runBench({
+        probes,
+        module,
+        ...(json ? { json } : {}),
+        ...(args.flags.has('samples') ? { samples: true } : {}),
+      });
     }
     case 'init':
       return commandInit(args);

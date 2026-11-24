@@ -85,6 +85,12 @@ export interface AnswerContext {
 /** What the engine carries between turns, so ellipsis and "and?" still work. */
 export interface EngineMemory {
   ruleId: string | null;
+  /**
+   * Set when a rule planned a tool call this turn. It is how a harness can tell
+   * "the rule asked for projects.list" from "the keyword engine happened to pick
+   * projects.list" — the call text is identical, the intent is not.
+   */
+  planned: { ruleId: string; capabilityId: string } | null;
   terms: string[];
   fields: FieldKind[];
   hits: ScanHit[];
@@ -98,8 +104,13 @@ export interface RulesEngineOptions {
   answers: AnswerRule[];
   /** Capabilities for the fallback engine, so route/action/query questions still work. */
   capabilities?: ManifestCapability[];
-  /** Retrieval score before an answer rule is tried. Default 1.0. */
+  /** Retrieval score before an answer rule is tried. Default: scaled to the rule count. */
   threshold?: number;
+  /**
+   * Extra leading verbs that mean "do this", not "answer me" — "filter to
+   * overdue" in a billing app. Defaults cover navigation and reading.
+   */
+  controllerVerbs?: string[];
   /** Replaces keyword matching as the fallback. */
   fallback?: AgentEngine;
   /** Extra facts for every query, e.g. synonyms the app wants to honour. */
@@ -137,7 +148,16 @@ const FIELD = 'field';
  * newest article") is asking the app to do something, not asking the knowledge
  * base a question. Answer rules stay out of the way so the capability decides.
  */
-const CONTROLLER = /^(show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate|see)\b/i;
+const DEFAULT_CONTROLLER =
+  'show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate|see';
+
+function controllerPattern(extra: string[] = []): RegExp {
+  const verbs = [
+    ...DEFAULT_CONTROLLER.split('|'),
+    ...extra.map((verb) => verb.replace(/[^a-z]/gi, '')).filter(Boolean),
+  ];
+  return new RegExp(`^(${verbs.join('|')})\\b`, 'i');
+}
 
 /** "and…", "what about…", "his…" and bare continuations lean on the last turn. */
 const FOLLOW_UP = /^(and|also|what about|how about|then|more|why)\b|^(his|her|their|its)\b/i;
@@ -218,11 +238,13 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
   const scanner = options.grounding
     ? (options.grounding.scanner ?? createFieldScanner(options.grounding.patterns ? { patterns: options.grounding.patterns } : {}))
     : undefined;
+  const controller = controllerPattern(options.controllerVerbs);
   const memoryEnabled = options.memory !== false;
   const memoryLimit = (typeof options.memory === 'object' && options.memory.turns) || 6;
 
   const memory: EngineMemory = {
     ruleId: null,
+    planned: null,
     terms: [],
     fields: [],
     hits: [],
@@ -258,6 +280,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
 
     if (memoryEnabled) {
       memory.ruleId = rule.id;
+      memory.planned = null;
       memory.terms = terms;
       memory.fields = hits.map((hit) => hit.kind);
       memory.hits = hits;
@@ -287,6 +310,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
     memory,
     resetMemory() {
       memory.ruleId = null;
+      memory.planned = null;
       memory.terms = [];
       memory.fields = [];
       memory.hits = [];
@@ -331,7 +355,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         .filter(Boolean)
         .join(' ');
 
-      const controllerRequest = CONTROLLER.test(query);
+      const controllerRequest = controller.test(query);
       let best;
       const explicit = controllerRequest ? undefined : answers.find((answer) => answer.match?.(query));
       if (explicit) {
@@ -361,7 +385,11 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         [best] = hits;
       }
       const rule = best ? answers.find((answer) => answer.id === best.capability.id) : undefined;
-      const threshold = rule?.threshold ?? options.threshold ?? 1;
+      // Absolute BM25 scores shrink with the corpus: with one answer rule the
+      // best possible phrase match scores about 1.2, so a flat 1.0 threshold
+      // silently drops real matches. Scale the default to how many rules exist.
+      const threshold =
+        rule?.threshold ?? options.threshold ?? Math.min(1, Math.max(0.35, 0.35 * answers.length));
       const byScore = rule && best && best.score >= threshold ? rule : undefined;
 
       // A rule with tools needs something to look up. "What is his stack?" is not
@@ -377,7 +405,11 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         const [stem] = tokenize(word);
         return Boolean(stem) && !ruleWordsForMatch.has(stem);
       });
-      const needsSubject = byScore?.requiresSubject !== false;
+      // Only a rule that consumes constants needs a subject. A listing rule
+      // ("which invoices are overdue") has nothing to look up by name and should
+      // run whenever it matches; requiring a subject made it vanish silently.
+      const needsSubject =
+        byScore?.requiresSubject !== false && byScore ? joinsAskedConstant(byScore, knowledge) : false;
       const matched = byScore && byScore.steps?.length && needsSubject && !hasSubject ? undefined : byScore;
 
       // Run the rule's read-only tools first, one per turn, and turn their
@@ -393,6 +425,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       if (matched?.steps?.length) {
         for (const step of matched.steps) {
           if (!observed.has(step.capabilityId)) {
+            if (memoryEnabled) memory.planned = { ruleId: matched.id, capabilityId: step.capabilityId };
             return { text: callTool(step.capabilityId, step.args ?? {}) };
           }
         }

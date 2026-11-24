@@ -14,6 +14,8 @@ Most "AI in your app" implementations stream the DOM to a server, pay per token,
 ```bash
 npm install client-agent          # once the npm release runs; until then use the tarball below
 npx client-agent init --skill     # writes the skill that keeps capabilities in sync
+npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
+npx client-agent bench --probes agent-probes.json --module agent-setup.mjs --samples
 ```
 
 Until the npm token is in place, every version is also attached to its GitHub release, which npm
@@ -32,7 +34,7 @@ npm install https://github.com/shobyde/client-agent/releases/download/v0.4.0/cli
 | `client-agent/vite` | AST scanner for `defineCapability()` / `defineKnowledge()` that emits `agent-manifest.json` and serves it as a virtual module |
 | `client-agent/react` | `<AgentProvider>`, `useAgentChat()`, `useRegisterCapability()` |
 | `client-agent/dom` | `createDomContextReader()`: labelled, budgeted page text, for a custom engine that wants grounding |
-| `client-agent/cli` | `verify`, `manifest`, `codes`, `init --skill`, and a self-check corpus runner |
+| `client-agent/cli` | `verify`, `manifest`, `codes`, `audit`, `bench`, `init --skill`, and a self-check corpus runner |
 
 One package, six entry points. `react` and `vite` are optional peers, so install the ones your app uses. `typescript` is a regular dependency because the manifest crawler and the Vite plugin parse with its AST.
 
@@ -235,6 +237,40 @@ const { text, steps } = await runtime.send('open the printable resume');
 ```
 
 Hash routes are supported for anchor navigation (`route: '#projects'`).
+
+## Proving the assistant answers (audit and bench)
+
+`verify` checks the declarations. These two check the conversation, against the
+engine your app actually runs:
+
+```bash
+npx client-agent audit --probes agent-probes.json --module agent-setup.mjs
+npx client-agent bench --probes agent-probes.json --module agent-setup.mjs --samples
+```
+
+`agent-probes.json` is one question per line, with what a correct answer looks
+like:
+
+```json
+{
+  "questions": [
+    { "question": "which invoices are overdue?", "expect": "invoices.overdue",
+      "intent": "invoices.overdue", "must": ["Northwind", "Fabrikam"] },
+    { "question": "filter to overdue", "expect": "invoices.filter", "args": { "status": "overdue" } }
+  ]
+}
+```
+
+`audit` reports the engine's own decision — the rule that planned a tool call, the
+capability that ran, or the knowledge paragraph that was quoted — and exits 1 on
+any miss. `bench` groups the probes by `intent` and scores the copy: fidelity
+(required facts present), paraphrase similarity with the facts masked, opener
+variety, length spread, and stability. Only intents with a `must` list are scored.
+
+`agent-setup.mjs` is the bridge: it exports `createEngine()` (and optionally
+`runCapability`, `answers`, `capabilities`) so the harness asks your app instead
+of reimplementing it. The skill written by `init --skill` documents the whole
+loop.
 
 ## What `verify` actually prints
 
