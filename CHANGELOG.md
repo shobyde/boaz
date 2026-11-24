@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.13 - 2026-11-24
+
+- Accessibility-tree actions without a model: `parseAction(sentence)` reads a verb, a role, a name, an
+  ordinal, a scope and a fill value; `resolveAction(request, nodes)` resolves them against a flat
+  accessibility tree (role + accessible name + region scopes) and `describeResolution()` says what it
+  found in one plain line.
+- It refuses rather than guesses. Two controls scoring the same is `ambiguous` with both candidates,
+  because a clicked button cannot be unclicked; a hidden control is `hidden` (rendered nowhere) rather than
+  absent; a disabled one is `disabled`; and the right name on the wrong role comes back as a `nearMiss`
+  ("no button is named Projects; the Projects link has that name") instead of the nearest wrong click.
+- A disabled twin does not make a live control ambiguous. The site's SEND button is aria-disabled until
+  the input has text, so counting it as a tie would have refused a click that was in fact unambiguous.
+- `flattenTree()` walks a nested tree into the flat, document-ordered list, inheriting region scopes and
+  hidden state; `ROLE_FAMILY` lets a textbox satisfy "search box" and vice versa, nearest role first.
+- Ceilings, both kept scored in the site's suite: `scroll to <section>` matches a nav link with that name
+  when the section itself is unnamed, and a role-only "fill the search box" resolves to the page's only
+  textbox even when that textbox is a chat input.
+
 ## 0.7.12 - 2026-11-24
 
 - `reset()` with no argument starts a new session, so turn numbering restarts. Found by the site's

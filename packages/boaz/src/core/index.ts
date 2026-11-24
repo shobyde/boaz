@@ -25,6 +25,15 @@ export type {
   StatedPreference,
 } from './preferences.js';
 export { createWorkingMemory, isCoverageQuery } from './memory.js';
+export { parseAction, resolveAction, describeResolution, flattenTree, normaliseName } from './actions.js';
+export type {
+  ActionNode,
+  ActionRequest,
+  ActionResolution,
+  ActionCandidate,
+  ActionVerb,
+  ActionReason,
+} from './actions.js';
 export type {
   WorkingMemory,
   WorkingMemoryOptions,
