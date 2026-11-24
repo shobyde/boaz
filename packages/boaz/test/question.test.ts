@@ -162,4 +162,27 @@ describe('pointer resolution', () => {
     expect(analyzeQuestion('its stack', { subjects, context }).cues).toContain('reference:pronoun');
     expect(analyzeQuestion('tell me about ground', { subjects }).cues).toContain('reference:partial');
   });
+
+  it('reads the connective between two names as all or any', () => {
+    const all = analyzeQuestion('which projects use python and sqlite', { subjects });
+    expect(all.slots.combine).toEqual({ op: 'all', between: ['Python 3.10+', 'SQLite'], cue: 'and' });
+
+    const any = analyzeQuestion('which projects use python or sqlite', { subjects });
+    expect(any.slots.combine).toEqual({ op: 'any', between: ['Python 3.10+', 'SQLite'], cue: 'or' });
+
+    // Nothing to join with one name, and nothing to guess with no connective.
+    expect(analyzeQuestion('which projects use python', { subjects }).slots.combine).toBeNull();
+    expect(analyzeQuestion('which projects use python sqlite', { subjects }).slots.combine).toBeNull();
+  });
+
+  it('does not read a connective from outside the pair', () => {
+    // The "and" joins a second command, not the two technologies.
+    const split = analyzeQuestion('which projects use python, and tell me who he is', { subjects });
+    expect(split.slots.combine).toBeNull();
+
+    // The exclusion removes the second name, so there is no pair left to join.
+    const excluded = analyzeQuestion('which projects use sqlite and not python', { subjects });
+    expect(excluded.slots.combine).toBeNull();
+    expect(excluded.slots.exclude).toEqual(['Python 3.10+']);
+  });
 });

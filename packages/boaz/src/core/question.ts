@@ -31,6 +31,8 @@ export interface QuestionSlots {
   attribute: string | null;
   /** Every declared subject the query names, in order of appearance. */
   entities: string[];
+  /** How two or more named things are joined, or null when there is nothing to join. */
+  combine: Combine | null;
   /** Recency qualifier, when the question names one. */
   newest: 'newest' | 'oldest' | null;
   /** True when the question points back at something instead of naming it. */
@@ -53,6 +55,21 @@ export interface Reference {
   /** The declared subject the pointer resolves to. */
   value: string;
   /** The words that pointed, kept for a trace line. */
+  cue: string;
+}
+
+/**
+ * How a question combines the things it names. "which projects use python and
+ * sqlite" wants the projects with both; "python or rust" wants either. The
+ * distinction lives in the words between the two names, which is why it is
+ * extracted here and not left to the app's keyword list.
+ */
+export interface Combine {
+  /** `all` = every named value must hold, `any` = one is enough. */
+  op: 'all' | 'any';
+  /** The two names the connective joins, in the order they were said. */
+  between: [string, string];
+  /** The word that decided it, for a trace line. */
   cue: string;
 }
 
@@ -333,6 +350,76 @@ const OBJECT_PRONOUNS = new Set(['it', 'its', "it's", 'that', 'this', 'those', '
 const CONTROLLER_OPEN =
   /^(?:show|open|go|take|read|expand|copy|download|print|visit|browse|scroll|jump|navigate|see|filter|sort)\b/;
 
+/**
+ * Words that join two names conjunctively ("python and sqlite" wants both) and
+ * disjunctively ("python or rust" wants either). Read only in the gap between
+ * the two names, nearest first: a connective elsewhere in the sentence joins
+ * something else, and "neither A nor B" is an exclusion, so `nor` is absent on
+ * purpose rather than quietly read as `or`.
+ */
+const ALL_CUES = new Set(['and', 'plus', 'both', 'with', 'also', 'along', 'well', 'as']);
+const ANY_CUES = new Set(['or', 'either', 'versus', 'vs']);
+
+/**
+ * Where a subject name starts inside a token list, trying the camel-split form
+ * and the joined spelling the visitor actually types ("TypeScript" vs
+ * "typescript"). Every caller that matches a name against text goes through
+ * this, so the slot, the span and the exclusion scope cannot disagree.
+ */
+function subjectAt(subject: string, haystack: string[]): number {
+  const tokens = subjectTokens(subject);
+  const at = matchIndex(tokens, haystack);
+  if (at >= 0) return at;
+  const joined = tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, ''));
+  if (joined.length === 0 || joined.join(' ') === tokens.join(' ')) return -1;
+  return matchIndex(joined, haystack);
+}
+
+/** Word index range of a subject name inside the query's plain words. */
+function subjectSpan(subject: string, words: string[]): { start: number; end: number } | null {
+  const forms = [subjectTokens(subject), tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, ''))]
+    .filter((form) => form.length > 0)
+    .filter((form, i, all) => all.findIndex((other) => other.join(' ') === form.join(' ')) === i);
+  for (const needle of forms) {
+    for (let start = 0; start < words.length; start += 1) {
+      let at = 0;
+      let i = start;
+      for (; i < words.length && at < needle.length; i += 1) {
+        if (allDigits(words[i])) continue;
+        if (words[i] !== needle[at]) break;
+        at += 1;
+      }
+      if (at === needle.length) return { start, end: i - 1 };
+    }
+  }
+  return null;
+}
+
+/**
+ * Decides whether two named things are joined by "and" or "or", from the words
+ * between them. Two names with no connective get null: "python sqlite" is a
+ * half-written list, and answering it as either a union or an intersection
+ * would be a guess.
+ */
+function resolveCombine(text: string, entities: string[]): Combine | null {
+  if (entities.length < 2) return null;
+  const words = plainWords(text);
+  const spans = entities
+    .map((subject) => ({ subject, span: subjectSpan(subject, words) }))
+    .filter((entry): entry is { subject: string; span: { start: number; end: number } } => entry.span !== null)
+    .sort((a, b) => a.span.start - b.span.start);
+  if (spans.length < 2) return null;
+  const [first, second] = [spans[0], spans[1]];
+  if (second.span.start <= first.span.end) return null;
+  const gap = words.slice(first.span.end + 1, second.span.start);
+  for (let i = gap.length - 1; i >= 0; i -= 1) {
+    const word = gap[i];
+    if (ANY_CUES.has(word)) return { op: 'any', between: [first.subject, second.subject], cue: word };
+    if (ALL_CUES.has(word)) return { op: 'all', between: [first.subject, second.subject], cue: word };
+  }
+  return null;
+}
+
 /** The plain words of a query, used for prefix matching against subject names. */
 function plainWords(query: string): string[] {
   return query
@@ -457,8 +544,7 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
   );
   const matched: { subject: string; at: number }[] = [];
   for (const subject of subjects) {
-    const tokens = subjectTokens(subject);
-    const at = matchIndex(tokens, queryTokens);
+    const at = subjectAt(subject, queryTokens);
     if (at < 0) continue;
     if (matched.some((entry) => entry.subject === subject)) continue;
     matched.push({ subject, at });
@@ -469,12 +555,12 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
   // entity and one exclusion.
   const scopes = negationScopes(text);
   const exclude = matched
-    .filter((entry) => {
-      const tokens = subjectTokens(entry.subject);
-      return scopes.some((scope) => matchIndex(tokens, tokenize(scope)) >= 0);
-    })
+    .filter((entry) => scopes.some((scope) => subjectAt(entry.subject, tokenize(scope)) >= 0))
     .map((entry) => entry.subject);
   const entities = matched.map((entry) => entry.subject).filter((subject) => !exclude.includes(subject));
+  // Two things the visitor named are joined by whatever sits between them:
+  // "python and sqlite" is an intersection, "python or rust" a union.
+  const combine = resolveCombine(text, entities);
   // Mentions stay keyed on everything the visitor named, including the ones they
   // excluded: "not Django" is still a word the answer should acknowledge.
   const entityTokens = new Set(matched.flatMap((entry) => subjectTokens(entry.subject)));
@@ -532,6 +618,7 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
       subject,
       attribute,
       entities,
+      combine,
       newest,
       referenced: referenced || resolved !== null,
       reference: resolved,

@@ -181,7 +181,13 @@ export class KnowledgeBase {
   private indexConstant(constant: string): void {
     // The same tokenizer the retriever uses, or "sqlite" (stemmed to "sqlit")
     // would never match the constant it came from.
-    for (const word of new Set(tokenize(constant))) {
+    const words = new Set(tokenize(constant));
+    // A camel-case name is split by the tokenizer ("TypeScript" -> type, script)
+    // but a visitor types it as one word, so the joined form is indexed too.
+    // Without it "which projects use typescript" finds no constant at all.
+    const joined = constant.toLowerCase().replace(/[^a-z0-9]+/g, '');
+    if (joined) words.add(joined);
+    for (const word of words) {
       const list = this.vocabulary.get(word) ?? [];
       if (!list.includes(constant)) list.push(constant);
       this.vocabulary.set(word, list);

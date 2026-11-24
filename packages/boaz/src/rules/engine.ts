@@ -1,6 +1,6 @@
 import type { AgentEngine, EngineCompletion, EngineRequest, ManifestCapability } from '../core/types.js';
 import { CapabilityIndex, tokenize } from '../core/retriever.js';
-import { analyzeQuestion } from '../core/question.js';
+import { analyzeQuestion, type Combine } from '../core/question.js';
 import { createLexicalEngine } from '../core/lexical-engine.js';
 import {
   createFieldScanner,
@@ -81,7 +81,12 @@ export interface AnswerContext {
    * list to filter a tool result it already holds.
    */
   exclude: string[];
-  /** Fields the question named and the page scan found, e.g. an email address. */
+  /**
+   * How the question joined the values it named: `all` for "python and sqlite",
+   * `any` for "python or rust", null for one value or no connective. A rule
+   * that answers over a set uses this instead of guessing from the query text.
+   */
+  combine: Combine | null;
   hits: ScanHit[];
   /** Tool results this rule read, keyed by capability id. */
   observed: Record<string, unknown>;
@@ -273,6 +278,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
     kb: KnowledgeBase = knowledge,
     mentions: string[] = [],
     excludes: string[] = [],
+    combine: Combine | null = null,
   ): EngineCompletion | null => {
     const solutions = kb.query(rule.goal, { assume });
     const context: AnswerContext = {
@@ -283,6 +289,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       terms,
       mentions,
       exclude: excludes,
+      combine,
       hits,
       observed,
       lookup: (goal) => kb.query(goal, { assume }),
@@ -465,7 +472,8 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       // Declared constants the question names, resolved against this turn's data.
       // A constant inside a negation scope is never asserted: "not sqlite" must
       // not let the stack rule answer "Readback uses SQLite".
-      const excludes = analyzeQuestion(query, { subjects: turnKnowledge.constants() }).slots.exclude;
+      const analysis = analyzeQuestion(query, { subjects: turnKnowledge.constants() });
+      const excludes = analysis.slots.exclude;
       const terms: string[] = [];
       for (const token of new Set(tokenize(query))) {
         for (const constant of turnKnowledge.canonicalFor(token)) {
@@ -517,6 +525,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
           turnKnowledge,
           mentions,
           excludes,
+          analysis.slots.combine,
         );
         if (completion) {
           if (factErrors.length) {

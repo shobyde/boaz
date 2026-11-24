@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.7.2 — 2026-11-24
+
+- `analyzeQuestion()` fills `slots.combine`: how the two names a question contains are joined.
+  `all` for "which projects use python and sqlite" (the projects that have both), `any` for
+  "python or rust" (either), `null` for one name or no connective. The operator is read only from
+  the words between the two names, nearest first, so a connective elsewhere in the sentence joins
+  something else and never turns a single question into a compound one. `nor` is deliberately not
+  a cue: "neither A nor B" is an exclusion, not a union, and reading it as `or` would answer both.
+- `AnswerContext.combine` carries that slot to answer rules, so a rule that answers over a set can
+  pick intersection or union without parsing the question again.
+- Constants indexed by `KnowledgeBase` are now also keyed by their joined spelling. `tokenize()`
+  splits camel case ("TypeScript" -> `type` + `script`), so a visitor typing `typescript` matched no
+  constant at all and "which projects use typescript" answered as if the page listed nothing.
+  Entity matching, the exclusion scope and the connective span now go through one helper
+  (`subjectAt`) and cannot disagree about whether a name is present.
+
 ## 0.7.1 — 2026-11-24
 
 - `analyzeQuestion()` fills `slots.reference`: what a visitor pointed at instead of naming.
