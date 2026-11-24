@@ -304,7 +304,22 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
         answers.length > 0 && !controllerRequest ? index.search(retrieval, { limit: 1, boost: false }) : [];
       const rule = best ? answers.find((answer) => answer.id === best.capability.id) : undefined;
       const threshold = rule?.threshold ?? options.threshold ?? 1;
-      const matched = rule && best && best.score >= threshold ? rule : undefined;
+      const byScore = rule && best && best.score >= threshold ? rule : undefined;
+
+      // A rule with tools needs something to look up. "What is his stack?" is not
+      // a question about a technology, so planning projects.list for it wastes a
+      // call and a trace line before the keyword engine answers anyway.
+      const ruleWordsForMatch = new Set(
+        byScore ? tokenize([byScore.title, ...(byScore.keywords ?? [])].join(' ')) : [],
+      );
+      const wordsNow = [
+        ...new Set(query.split(/[^A-Za-z0-9+#.]+/).filter((word) => word.length > 1)),
+      ];
+      const hasSubject = wordsNow.some((word) => {
+        const [stem] = tokenize(word);
+        return Boolean(stem) && !ruleWordsForMatch.has(stem);
+      });
+      const matched = byScore && byScore.steps?.length && !hasSubject ? undefined : byScore;
 
       // Run the rule's read-only tools first, one per turn, and turn their
       // results into facts. This is the loop an LLM gets from tool calling, with

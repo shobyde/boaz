@@ -260,7 +260,9 @@ describe('tool reasoning', () => {
       capabilities: [],
     });
     const completion = await engine.complete({
-      messages: [{ role: 'user', content: 'list projects' }],
+      // A word outside the rule's own vocabulary: without a subject the engine
+      // now declines to plan a tool at all.
+      messages: [{ role: 'user', content: 'list the projects he shipped' }],
       tools: [],
       observations: { 'projects.list': { projects: [] } },
     });

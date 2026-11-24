@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-11-23
+
+- A rule with tool steps only plans them when the question has a subject of its own. "What is his
+  stack?" was calling projects.list before the keyword engine answered the actual question; a
+  technology nobody lists ("TypeScript") still counts as a subject, so that answer survives.
+- 114 tests.
+
 ## 0.5.9 — 2026-11-23
 
 - Pronouns and auxiliaries are stopwords. With a handful of capabilities, a rare word inflates IDF:
