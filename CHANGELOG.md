@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.6.10 — 2026-11-24
+
+- `analyzeQuestion()` fills `slots.exclude`: the declared subjects inside a
+  negation scope, for "not python", "anything but hobnob", "excluding the
+  archive", "other than", "besides", "apart from", "without". A negated subject
+  is removed from `entities`, because the visitor is asking about everything
+  else, and stays in `mentions` so an app can still acknowledge the word.
+- Scope ends at a sentence end or "but", and at a comma only when a new question
+  or command follows, so "not the archive, take me to the blog" excludes one
+  thing and still navigates. Idioms ("not sure", "not to like", "why not") and
+  negation-shaped words with no subject after them ("no model") produce no
+  exclusion.
+- The rules engine never asserts `asked()` for a constant the question ruled
+  out, so "which projects use sqlite but not python" no longer answers with the
+  Python projects. `AnswerContext.exclude` carries the list, and
+  `EngineMemory.excludes` reports it for a debug panel.
+- 149 tests (5 new).
+
 ## 0.6.9 — 2026-11-24
 
 - `analyzeQuestion(query, { subjects, attributes })` in `client-agent/core`

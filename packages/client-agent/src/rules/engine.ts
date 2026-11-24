@@ -1,5 +1,6 @@
 import type { AgentEngine, EngineCompletion, EngineRequest, ManifestCapability } from '../core/types.js';
 import { CapabilityIndex, tokenize } from '../core/retriever.js';
+import { analyzeQuestion } from '../core/question.js';
 import { createLexicalEngine } from '../core/lexical-engine.js';
 import {
   createFieldScanner,
@@ -74,6 +75,12 @@ export interface AnswerContext {
    * is how a rule answers "the data does not have that" instead of going quiet.
    */
   mentions: string[];
+  /**
+   * Declared constants the question ruled out ("not python", "anything but
+   * hobnob"). The engine never asserts `asked()` for one, and a rule can use the
+   * list to filter a tool result it already holds.
+   */
+  exclude: string[];
   /** Fields the question named and the page scan found, e.g. an email address. */
   hits: ScanHit[];
   /** Tool results this rule read, keyed by capability id. */
@@ -96,6 +103,8 @@ export interface EngineMemory {
   hits: ScanHit[];
   entities: string[];
   recentQueries: string[];
+  /** Constants the last answered question excluded. */
+  excludes: string[];
   turns: number;
 }
 
@@ -250,6 +259,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
     hits: [],
     entities: [],
     recentQueries: [],
+    excludes: [],
     turns: 0,
   };
 
@@ -262,6 +272,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
     observed: Record<string, unknown> = {},
     kb: KnowledgeBase = knowledge,
     mentions: string[] = [],
+    excludes: string[] = [],
   ): EngineCompletion | null => {
     const solutions = kb.query(rule.goal, { assume });
     const context: AnswerContext = {
@@ -271,6 +282,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       knowledge: kb,
       terms,
       mentions,
+      exclude: excludes,
       hits,
       observed,
       lookup: (goal) => kb.query(goal, { assume }),
@@ -285,6 +297,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       memory.fields = hits.map((hit) => hit.kind);
       memory.hits = hits;
       memory.entities = [...new Set(solutions.flatMap((solution) => Object.values(solution.bindings)))];
+      memory.excludes = excludes;
       memory.recentQueries = [...memory.recentQueries, query].slice(-memoryLimit);
       memory.turns += 1;
     }
@@ -316,6 +329,7 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       memory.hits = [];
       memory.entities = [];
       memory.recentQueries = [];
+      memory.excludes = [];
       memory.turns = 0;
     },
 
@@ -449,9 +463,13 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
           : knowledge;
 
       // Declared constants the question names, resolved against this turn's data.
+      // A constant inside a negation scope is never asserted: "not sqlite" must
+      // not let the stack rule answer "Readback uses SQLite".
+      const excludes = analyzeQuestion(query, { subjects: turnKnowledge.constants() }).slots.exclude;
       const terms: string[] = [];
       for (const token of new Set(tokenize(query))) {
         for (const constant of turnKnowledge.canonicalFor(token)) {
+          if (excludes.includes(constant)) continue;
           if (!terms.includes(constant)) terms.push(constant);
         }
       }
@@ -489,7 +507,17 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
             !ELLIPSIS_WORDS.has(word)
           );
         });
-        const completion = runRule(matched, query, effectiveTerms, effectiveHits, assume, Object.fromEntries(observed), turnKnowledge, mentions);
+        const completion = runRule(
+          matched,
+          query,
+          effectiveTerms,
+          effectiveHits,
+          assume,
+          Object.fromEntries(observed),
+          turnKnowledge,
+          mentions,
+          excludes,
+        );
         if (completion) {
           if (factErrors.length) {
             completion.steps = [

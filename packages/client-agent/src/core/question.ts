@@ -35,6 +35,12 @@ export interface QuestionSlots {
   newest: 'newest' | 'oldest' | null;
   /** True when the question points back at something instead of naming it. */
   referenced: boolean;
+  /**
+   * Subjects named inside a negation scope: "python but not readback" excludes
+   * Readback. A negated subject is never also an entity, because the visitor is
+   * asking about everything else.
+   */
+  exclude: string[];
   /** Content words no subject or attribute accounted for. */
   mentions: string[];
 }
@@ -194,6 +200,42 @@ const PRONOUNS = new Set([
   'that', 'this', 'those', 'these', 'theirs', 'ours', 'yours',
 ]);
 
+/**
+ * Cues that put what follows them out of scope. Longest alternation first so
+ * "anything but" is not read as a bare clause break.
+ */
+const NEGATION_CUE = /\b(?:anything but|other than|apart from|excluding|excludes?|except|besides|without|not)\b/g;
+
+/** Words that turn "not" into an idiom ("not sure", "not to like") rather than an exclusion. */
+const NEGATION_IDIOMS = new Set([
+  'sure', 'bad', 'only', 'just', 'much', 'really', 'necessarily', 'quite', 'even', 'to', 'so', 'yet', 'at', 'all',
+]);
+
+/**
+ * Where an exclusion stops. A sentence end or "but" always closes it; a comma
+ * closes it only when what follows starts a new question or a command, so
+ * "not readback, take me to the blog" excludes one thing and still navigates.
+ */
+const NEGATION_BREAK =
+  /[.;?!]|\bbut\b|,\s*(?:who|what|where|when|why|which|how|take|open|show|go|give|tell|and then)\b/;
+
+/** The text inside each negation scope, in order of appearance. */
+function negationScopes(text: string): string[] {
+  const scopes: string[] = [];
+  NEGATION_CUE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = NEGATION_CUE.exec(text)) !== null) {
+    const rest = text.slice(match.index + match[0].length);
+    const nextWord = (rest.trimStart().match(/^[a-z']+/) ?? [''])[0];
+    if (NEGATION_IDIOMS.has(nextWord)) continue;
+    // "why not python" is a suggestion, not an exclusion.
+    if (/\bwhy\s*$/.test(text.slice(0, match.index))) continue;
+    const stop = rest.search(NEGATION_BREAK);
+    scopes.push(stop < 0 ? rest : rest.slice(0, stop));
+  }
+  return scopes;
+}
+
 function allDigits(token: string): boolean {
   return /^[0-9]+$/.test(token);
 }
@@ -274,7 +316,19 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
     matched.push({ subject, at });
   }
   matched.sort((a, b) => a.at - b.at);
-  const entities = matched.map((entry) => entry.subject);
+  // A subject inside a negation scope is what the visitor ruled out, not what
+  // they asked about: "which projects use python but not readback" has one
+  // entity and one exclusion.
+  const scopes = negationScopes(text);
+  const exclude = matched
+    .filter((entry) => {
+      const tokens = subjectTokens(entry.subject);
+      return scopes.some((scope) => matchIndex(tokens, tokenize(scope)) >= 0);
+    })
+    .map((entry) => entry.subject);
+  const entities = matched.map((entry) => entry.subject).filter((subject) => !exclude.includes(subject));
+  // Mentions stay keyed on everything the visitor named, including the ones they
+  // excluded: "not Django" is still a word the answer should acknowledge.
   const entityTokens = new Set(matched.flatMap((entry) => subjectTokens(entry.subject)));
 
   const attributes = attributeIndex(options.attributes);
@@ -320,7 +374,7 @@ export function analyzeQuestion(query: string, options: AnalyzeOptions = {}): Qu
     confidence,
     contested,
     questionShaped: type !== 'unknown' || /\?\s*$/.test(query),
-    slots: { subject, attribute, entities, newest, referenced, mentions },
+    slots: { subject, attribute, entities, newest, referenced, exclude, mentions },
     cues: [...new Set(cues)],
   };
 }

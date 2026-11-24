@@ -1,6 +1,6 @@
 {
   "name": "client-agent",
-  "version": "0.6.9",
+  "version": "0.6.10",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",

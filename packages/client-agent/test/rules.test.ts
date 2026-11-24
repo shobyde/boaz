@@ -167,6 +167,19 @@ describe('createRulesEngine', () => {
     expect(completion.text).not.toContain('use it');
     expect(completion.text).toContain('Selected projects');
   });
+
+  it('never asserts a constant the question ruled out', async () => {
+    const engine = createRulesEngine({
+      knowledge: projects,
+      answers: [answerRule()],
+      capabilities: [routeCapability],
+    });
+    const completion = await ask(engine, 'which projects use sqlite but not python');
+
+    expect(completion.text).toBe('Readback use it.');
+    expect(engine.memory.excludes).toEqual(['Python 3.10+']);
+    expect(completion.steps?.[0]).toMatchObject({ terms: ['SQLite'] });
+  });
 });
 
 describe('streaming', () => {
@@ -216,4 +229,5 @@ describe('streaming', () => {
     await runtime.send('hello');
     expect(events.some((event) => event.type === 'delta')).toBe(false);
   });
+
 });

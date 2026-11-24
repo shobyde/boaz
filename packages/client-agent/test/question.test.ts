@@ -76,4 +76,31 @@ describe('analyzeQuestion', () => {
     expect(a.type).toBe('where');
     expect(a.slots.newest).toBe('newest');
   });
+
+  it('reads a negation scope as an exclusion, not an entity', () => {
+    const analysis = analyzeQuestion('which projects use python but not readback', { subjects });
+    expect(analysis.slots.entities).toEqual(['Python 3.10+']);
+    expect(analysis.slots.exclude).toEqual(['Readback']);
+  });
+
+  it('handles the phrasing a visitor actually uses', () => {
+    expect(analyzeQuestion('anything but hobnob', { subjects }).slots.exclude).toEqual(['Hobnob']);
+    expect(analyzeQuestion('which projects use sqlite, excluding readback', { subjects }).slots.exclude).toEqual([
+      'Readback',
+    ]);
+    expect(analyzeQuestion('explain groundglass without mentioning hobnob', { subjects }).slots.exclude).toEqual([
+      'Hobnob',
+    ]);
+  });
+
+  it('ends the exclusion when a new clause starts', () => {
+    const analysis = analyzeQuestion('not the archive, take me to the blog', { subjects });
+    expect(analysis.slots.exclude).toEqual(['the archive']);
+  });
+
+  it('does not read an idiom as an exclusion', () => {
+    expect(analyzeQuestion('not sure, which projects use python', { subjects }).slots.exclude).toEqual([]);
+    expect(analyzeQuestion('why not python', { subjects }).slots.exclude).toEqual([]);
+    expect(analyzeQuestion('why is there no model in the assistant', { subjects }).slots.exclude).toEqual([]);
+  });
 });
