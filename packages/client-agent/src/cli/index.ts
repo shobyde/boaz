@@ -7,6 +7,7 @@ import { formatDiagnostic, formatSummary, printCodes } from '../build/report.js'
 import { CLIENT_LLM_SKILL_MD } from './skill-template.js';
 import { runAudit } from './audit.js';
 import { runBench } from './bench.js';
+import { generateProbes, serializeProbes } from '../build/probes.js';
 
 type FlagValue = string | true | string[];
 
@@ -24,6 +25,7 @@ Usage
   client-agent codes [CODE]
   client-agent audit --probes <file> --module <file> [--json] [--quiet]
   client-agent bench --probes <file> --module <file> [--json <out>] [--samples]
+  client-agent probes [dir] [--generate] [--out <file>] [--manifest <file>] [--force]
   client-agent init [dir] --skill [--force]
   client-agent verify --self-check <fixtures-dir>
 
@@ -38,6 +40,9 @@ Commands
   bench      Score the copy: fidelity, paraphrase similarity, opener variety,
              length spread, stability. Probes with the same "intent" are the
              paraphrases of one question.
+  probes     Turn a manifest into a starting probe file: one question per
+             capability title and keyword, plus the phrases that more than one
+             capability claims, which no probe can honestly assert.
   init       Install the repository skill that keeps capabilities in sync and
              shows how to test what they answer.
 
@@ -52,7 +57,7 @@ Options
 function parseArgs(argv: string[]): Args {
   const flags = new Map<string, FlagValue>();
   const positionals: string[] = [];
-  const takesValue = new Set(['include', 'exclude', 'out', 'self-check', 'probes', 'module', 'json']);
+  const takesValue = new Set(['include', 'exclude', 'out', 'self-check', 'probes', 'module', 'json', 'manifest']);
   const setFlag = (key: string, value: FlagValue) => {
     if (Array.isArray(value) || value === true) {
       flags.set(key, value);
@@ -301,6 +306,60 @@ async function commandInit(args: Args): Promise<number> {
   return 0;
 }
 
+async function commandProbes(args: Args): Promise<number> {
+  if (!args.flags.has('generate')) {
+    process.stderr.write('probes: pass --generate to write a starting probe file from the manifest\n');
+    return 1;
+  }
+  const dir = path.resolve(args.positionals[0] ?? '.');
+  const manifestPath = path.resolve(single(args.flags, 'manifest') ?? path.join(dir, 'agent-manifest.json'));
+  let manifest: { capabilities?: unknown };
+  try {
+    manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as { capabilities?: unknown };
+  } catch (error) {
+    process.stderr.write(`probes: cannot read ${manifestPath} (${(error as Error).message})\n`);
+    return 2;
+  }
+  if (!Array.isArray(manifest.capabilities)) {
+    process.stderr.write(`probes: ${manifestPath} has no capabilities array; run \`client-agent manifest\` first\n`);
+    return 2;
+  }
+
+  const outPath = path.resolve(single(args.flags, 'out') ?? path.join(path.dirname(manifestPath), 'probes.generated.json'));
+  const exists = await fs
+    .access(outPath)
+    .then(() => true)
+    .catch(() => false);
+  if (exists && !args.flags.has('force')) {
+    process.stderr.write(`probes: ${outPath} exists; pass --force to overwrite\n`);
+    return 1;
+  }
+
+  const result = generateProbes(manifest as Parameters<typeof generateProbes>[0], {
+    ...(args.flags.has('keywords-only') ? { titles: false } : {}),
+    ...(args.flags.has('titles-only') ? { keywords: false } : {}),
+  });
+  await fs.writeFile(outPath, serializeProbes(result));
+  const capabilityCount = (manifest.capabilities as unknown[]).length;
+  process.stdout.write(
+    `wrote ${outPath}: ${result.questions.length} probes covering ` +
+      `${capabilityCount - result.uncovered.length} of ${capabilityCount} capabilities\n`,
+  );
+  if (result.collisions.length) {
+    process.stdout.write(`\n${result.collisions.length} phrase(s) claim more than one capability:\n`);
+    for (const collision of result.collisions) {
+      process.stdout.write(`  ${collision.source.padEnd(7)} "${collision.phrase}" — ${collision.claimants.join(', ')}\n`);
+    }
+    process.stdout.write('  A shared phrase is a routing coin flip: give one of them a phrase of its own.\n');
+  }
+  if (result.uncovered.length) {
+    process.stdout.write(`\n${result.uncovered.length} capability/capabilities with no probe:\n`);
+    for (const gap of result.uncovered) process.stdout.write(`  ${gap.id} — ${gap.reason}\n`);
+  }
+  process.stdout.write(`\nNext: client-agent audit --probes ${outPath} --module <agent-setup.mjs>\n`);
+  return 0;
+}
+
 async function main(): Promise<number> {
   let args: Args;
   try {
@@ -356,6 +415,8 @@ async function main(): Promise<number> {
         ...(args.flags.has('samples') ? { samples: true } : {}),
       });
     }
+    case 'probes':
+      return commandProbes(args);
     case 'init':
       return commandInit(args);
     case 'version':

@@ -213,6 +213,22 @@ Reading the numbers:
 Then read the samples. The numbers say the answers stopped repeating; they cannot
 say the answers read well.
 
+**No probe file yet?** Generate a starting one from the manifest:
+
+\`\`\`bash
+npx client-agent probes --generate --manifest dist/agent-manifest.json
+\`\`\`
+
+It writes \`probes.generated.json\` with one question per capability title and
+keyword, each already expecting the capability it came from, and prints two
+lists worth reading: phrases that two capabilities in the same query class both
+claim (no probe can assert a coin flip; give one of them a phrase of its own),
+and capabilities with no probe (a capability that requires arguments cannot be
+probed from a phrase alone, so write that one by hand with \`args\`). Edit the
+phrasing to match how your visitors actually talk, then run \`audit\`. A miss on a
+generated probe usually means the manifest still claims a phrasing that an
+answer rule took over.
+
 ## Done means
 
 \`\`\`bash

@@ -272,6 +272,18 @@ variety, length spread, and stability. Only intents with a `must` list are score
 of reimplementing it. The skill written by `init --skill` documents the whole
 loop.
 
+No probe file yet? Generate one from the manifest:
+
+```bash
+npx client-agent probes --generate --manifest dist/agent-manifest.json
+```
+
+Every capability title and keyword becomes a question that expects the
+capability it came from. It reports the two things it cannot decide for you:
+phrases that two capabilities in the same query class both claim, and
+capabilities that need arguments (a phrase names what to open, not which one).
+Edit the wording, then run `audit`.
+
 ## What `verify` actually prints
 
 Real output, from the demo app in `apps/demo`:

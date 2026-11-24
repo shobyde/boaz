@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.6.7 — 2026-11-23
+
+Coverage before anyone writes a probe by hand.
+
+- `client-agent probes --generate --manifest <file>` turns a manifest into
+  `probes.generated.json`: one question per capability title and keyword, each
+  expecting the capability it came from and grouped under it as an `intent`, so
+  `audit` runs immediately and `bench` can score the copy once `must` facts are
+  added. `--out`, `--titles-only`, `--keywords-only`, `--force` (it refuses to
+  overwrite an existing probe file).
+- A route probe is written as a request ("take me to faq"), because naming a
+  destination is not asking to go there.
+- Two capabilities in the same query class claiming one phrase are reported, not
+  emitted: whichever answered, the probe would be recording a coin flip. A
+  knowledge entry and a route may still share a phrase, since their probes take
+  different forms and the engine decides question vs request first.
+- A capability with required parameters is reported with `needsArgs` instead of
+  guessed: a phrase names what to open, not which one.
+- `generateProbes`, `serializeProbes` and `normalizePhrase` are exported from
+  `client-agent/build`, so a browser can generate the same file.
+- 135 tests.
+
 ## 0.6.6 — 2026-11-23
 
 Testing comes with the package.
