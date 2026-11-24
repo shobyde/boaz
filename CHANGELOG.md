@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 - 2026-11-24
+
+- Facts can now be ranked, not only joined. `rankFacts(facts, { relation, attribute, direction })`
+  reads the number inside a value ("99.95%", "400 days", "tier 2") and returns the contenders in
+  order; `topFact()` is the winner. A row with no number is not a contender rather than a zero, so
+  "unknown" can never win a maximum.
+- `createFactIndex(facts)` is BM25 over the fact sentences themselves, for the questions that name a
+  topic and not a subject: "what happens during a sev 1", "how long are audit logs kept". It shares
+  the tokenizer and the stoplist with the capability index, and its floor is a score rather than a
+  match count, because a policy question may share exactly one word and still be the right one.
+- `factText(row)` renders a row the way a reader would say it, which is also what the index stores.
+- `AnswerContext` now carries the app's `capabilities` (id and title), so a rule can answer questions
+  about the assistant itself ("what can you do?") from the same manifest the UI advertises.
+- Measured on the site's handbook arena (170 facts, 14 turns nothing was tuned against): the hybrid
+  approach moves from 4/14 to 9/14, retrieval alone from 6/14 to 8/14, and the fitted suite stays at
+  91/91. On the site's own thread suite the session goes from 21/30 to 28/30 (context 11/17 to 15/17)
+  with the routing audit still 48/48.
+
 ## 0.7.14 - 2026-11-24
 
 - An MCP-shaped bridge, so the capabilities a page's assistant uses are the same tools a protocol

@@ -88,6 +88,8 @@ export interface AnswerContext {
    */
   combine: Combine | null;
   hits: ScanHit[];
+  /** The app's capabilities, by id and title, so a rule can describe itself. */
+  capabilities: Array<{ id: string; title?: string }>;
   /** Tool results this rule read, keyed by capability id. */
   observed: Record<string, unknown>;
   /** Runs another goal against the same knowledge and assumptions. */
@@ -292,6 +294,12 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       combine,
       hits,
       observed,
+      // What the app can do, so a rule can answer questions about the assistant
+      // itself ("what can you do?") from the same manifest the UI advertises.
+      capabilities: (options.capabilities ?? []).map((capability) => ({
+        id: capability.id,
+        ...(capability.title ? { title: capability.title } : {}),
+      })),
       lookup: (goal) => kb.query(goal, { assume }),
     };
     const text = rule.compose(context).trim();

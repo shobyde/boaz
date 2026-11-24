@@ -16,6 +16,15 @@ export type {
   Solution,
   Term,
 } from './knowledge.js';
+export {
+  createFactIndex,
+  factText,
+  indexTokens,
+  numberOf,
+  rankFacts,
+  topFact,
+} from './facts.js';
+export type { FactHit, FactIndex, FactIndexOptions, RankedFact } from './facts.js';
 export { createRulesEngine } from './engine.js';
 export type { AnswerContext, AnswerRule, RulesEngineOptions } from './engine.js';
 export type { Combine } from '../core/question.js';
