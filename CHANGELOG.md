@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.7.4 - 2026-11-24
+
+- `summarise()` and `splitSentences()` in `core/summarise.ts`: extractive summarisation over any sentence
+  set. Picks k sentences by MMR over tf-idf cosine: relevance from `tokenize()` of the question, novelty
+  from the distance to what is already picked, and `maxPerSource` (default 1) so one document cannot fill
+  the answer. Picks carry `relevance`, `novelty` and `score`, which is what lets a caller show its work and
+  a harness score the summary instead of trusting it.
+- A question that names nothing in the corpus reports `unguided: true` and still returns diverse sentences
+  instead of a relevance ranking of noise.
+- No model, no embeddings, no weights: token counts and cosine, over data the app already ships. Six tests,
+  including one per failure mode (one document filling the answer, an unguided question, a fragment too
+  short to be a sentence).
+
 ## 0.7.3 — 2026-11-24
 
 - Answers now reach the app's own vocabulary from the words a visitor actually types. `analyzeQuestion()`
