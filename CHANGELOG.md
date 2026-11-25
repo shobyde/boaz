@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 - 2026-11-25
+
+- README only. The release runbook is gone from the package README: npm renders the repo README on
+  the package page, so the tag/token/staging instructions were being published to every visitor. The
+  procedure lives in the maintainer's notes, not the product page. No code, types or exports changed.
+
 ## 0.9.0 - 2026-11-24
 
 - New module `boaz/match`, two functions and no model: `createEntityResolver({ names })` rewrites a
