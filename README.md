@@ -24,7 +24,7 @@ Every version is also attached to its GitHub release, which npm installs directl
 prebuilt `dist/`:
 
 ```bash
-npm install https://github.com/shobyde/boaz/releases/download/v0.7.0/boaz-0.7.0.tgz
+npm install https://github.com/shobyde/boaz/releases/download/v0.9.0/boaz-0.9.0.tgz
 ```
 
 ## The pieces
@@ -389,35 +389,12 @@ fixtures/selfcheck/ nine fixtures, each declaring the codes it must provoke
 docs/media/         stills captured from the running demo
 ```
 
-## Releasing
-
-Pushing a version tag does the whole release.
-
-```bash
-cd packages/boaz && npm version minor --no-git-tag-version && cd ../..
-# add the entry at the top of CHANGELOG.md, then
-git commit -am "0.8.3: what changed" && git tag v0.8.3 && git push origin main --tags
-```
-
-The tag runs `.github/workflows/release.yml`: install, build, test, check that the tag matches
-`packages/boaz/package.json`, `npm pack`, attach the tarball to the GitHub release, then publish to
-npm with provenance. A tag whose version is already on the registry is a no-op, so re-running a
-release is safe. Auth is trusted publishing over OIDC when the `NPM_TRUSTED_PUBLISHER` repo variable
-is `true`, otherwise the `NPM_TOKEN` secret.
-
-If you would rather see a release before it ships, set the repo variable `NPM_STAGE=true`. The same
-step then runs `npm stage publish` instead: nothing is installable until someone runs
-`npm stage approve <stage-id>`, and the run summary prints that command. Staging needs no 2FA; the
-approval is where the human comes in.
-
 ## Status
 
-`0.7.0`. The package is renamed from `client-agent` to `boaz`; the code is the same 0.6.10 behaviour
+`0.9.0`. The package is renamed from `client-agent` to `boaz`; the code is the same 0.6.10 behaviour
 under a new name, `bin`, virtual module (`boaz:manifest`), dev artifact directory (`.boaz/`) and
 consumer skill (`boaz-capabilities.md`). 0.4.0 was the last breaking change before that: the `webllm`
-and `chrome-ai` entry points, their peer dependency and the demo's worker are gone. Releasing is
-wired in `.github/workflows/release.yml`: a version tag builds and tests, packs the tarball, attaches
-it to the GitHub release and publishes to npm with provenance. It is running in production on
-shobyde.com.
+and `chrome-ai` entry points, their peer dependency and the demo's worker are gone. It is running in
+production on shobyde.com.
 
 MIT.
