@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.9.4 - 2026-11-25
+
+- Tool-backed rules now resolve the words the visitor typed instead of their
+  stems. `tokenize("TypeScript")` is `type` and `script`, so a rule with a
+  `projects.list` step dropped TypeScript after the tool returned and answered
+  "no project lists TypeScript". The terms pass now asks `canonicalFor()` for
+  each whole query word, which also keeps `C++` and other punctuation names
+  reachable. One engine test added; the conversation facade is unchanged.
+
 ## 0.9.3 - 2026-11-25
 
 - A camel-case constant is reachable by the spelling the visitor typed.

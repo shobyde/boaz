@@ -483,8 +483,12 @@ export function createRulesEngine(options: RulesEngineOptions): RulesEngine {
       const analysis = analyzeQuestion(query, { subjects: turnKnowledge.constants() });
       const excludes = analysis.slots.exclude;
       const terms: string[] = [];
-      for (const token of new Set(tokenize(query))) {
-        for (const constant of turnKnowledge.canonicalFor(token)) {
+      // Resolve the words the visitor typed, not their stems. tokenize() splits
+      // a camel-case name ("TypeScript" -> type, script), and either half is a
+      // different word; canonicalFor() knows the joined spelling.
+      const queryWords = query.split(/[^A-Za-z0-9+#.]+/).filter((word) => word.length > 1);
+      for (const word of new Set(queryWords)) {
+        for (const constant of turnKnowledge.canonicalFor(word)) {
           if (excludes.includes(constant)) continue;
           if (!terms.includes(constant)) terms.push(constant);
         }
