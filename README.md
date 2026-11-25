@@ -24,7 +24,7 @@ Every version is also attached to its GitHub release, which npm installs directl
 prebuilt `dist/`:
 
 ```bash
-npm install https://github.com/shobyde/boaz/releases/download/v0.9.2/boaz-0.9.2.tgz
+npm install https://github.com/shobyde/boaz/releases/download/v0.9.4/boaz-0.9.4.tgz
 ```
 
 ## The pieces
