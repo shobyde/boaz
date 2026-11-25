@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.5 - 2026-11-25
+
+- A name that is the word beats a name that contains it. With 0.8.4's `cpp` spelling, a stack value
+  `C++` and a project titled `C++ physics simulation engines` both indexed the word, so
+  `canonicalFor('cpp')` returned both and the engine asserted `asked()` for the title as well. The
+  answer to "which projects use c++" read "C++ physics simulation engines is the one project listing
+  C++ physics simulation engines", and the trace called it a two-condition question. `canonicalFor`
+  now prefers the candidate whose whole tokenisation is the token; the longer name stays reachable by
+  its other words (`physics`, `engines`) and by its joined spelling.
+- Suite: 281 tests (1 new). Site discourse held at 20/20 and every other class unchanged.
+
 ## 0.8.4 - 2026-11-25
 
 - A technology whose name is punctuation can be named. `tokenize('C++')` and `tokenize('C#')` both

@@ -203,10 +203,27 @@ export class KnowledgeBase {
     }
   }
 
-  /** Canonical constants whose words include the given token. */
+  /**
+   * Canonical constants whose words include the given token.
+   *
+   * A name that IS the word beats a name that merely contains it. `C++` and the
+   * project titled `C++ physics simulation engines` both index the word `cpp`,
+   * and returning both made "which projects use c++" a two-condition question:
+   * the engine asserted `asked()` for the title as well and the answer said the
+   * project "is the one project listing C++ physics simulation engines". The
+   * exact name is the reading of a bare word; the longer name is reachable by
+   * its other words (`physics`, `engines`) or by its whole spelling.
+   */
   canonicalFor(token: string): string[] {
     const [stemmed] = tokenize(token);
-    return this.vocabulary.get(stemmed ?? token.toLowerCase()) ?? [];
+    const key = stemmed ?? token.toLowerCase();
+    const all = this.vocabulary.get(key) ?? [];
+    if (all.length < 2) return all;
+    const exact = all.filter((constant) => {
+      const words = tokenize(constant);
+      return words.length === 1 && words[0] === key;
+    });
+    return exact.length > 0 ? exact : all;
   }
 
   /** Every declared row, in declaration order. */

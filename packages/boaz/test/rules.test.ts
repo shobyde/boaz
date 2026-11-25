@@ -104,6 +104,19 @@ describe('KnowledgeBase', () => {
     // still not the name.
     expect(punct.canonicalFor('c')).toEqual([]);
   });
+
+  it('a name that is the word beats a name that contains it', () => {
+    // Both index "cpp": the stack value and a project title that opens with it.
+    // Returning both asserted asked() for the title and turned one question into
+    // a two-condition ask.
+    const both = new KnowledgeBase({
+      facts: [fact('uses', 'digipen', 'C++'), fact('uses', 'C++ physics simulation engines', 'C++')],
+    });
+    expect(both.canonicalFor('c++')).toEqual(['C++']);
+    // The longer name is still reachable by its other words and its whole form.
+    expect(both.canonicalFor('physics')).toEqual(['C++ physics simulation engines']);
+    expect(both.canonicalFor('engines')).toEqual(['C++ physics simulation engines']);
+  });
 });
 
 const routeCapability: ManifestCapability = {
