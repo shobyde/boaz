@@ -123,3 +123,88 @@ describe('conversation facade', () => {
     expect(chat.runtime.conversation).toEqual([]);
   });
 });
+
+describe('conversation context resolution', () => {
+  const makeContextChat = () => {
+    const echo = defineCapability({
+      id: 'echo',
+      kind: 'query',
+      title: 'Echo',
+      description: 'Echoes the resolved question.',
+      paramsSchema: {
+        type: 'object',
+        properties: { q: { type: 'string' } },
+        required: ['q'],
+        additionalProperties: false,
+      },
+      handler: async ({ q }) => ({
+        answer: q.startsWith('what has he built')
+          ? 'Hobnob, Readback, Groundglass'
+          : q.includes('projects use python')
+            ? 'Readback, Groundglass'
+            : q,
+      }),
+    });
+    let calls = [];
+    const chat = createConversation({
+      subjects: ['Hobnob', 'Readback', 'Groundglass', 'Boaz'],
+      descriptions: [
+        { match: /reading|books/i, subject: 'Readback' },
+        { match: /meeting|notes/i, subject: 'Hobnob' },
+        { match: /generated|interface|conformance/i, subject: 'Groundglass' },
+      ],
+      sizeOf: (name) => ({ Hobnob: 8142, Readback: 7315, Groundglass: 1771, Boaz: 11374 })[name] ?? null,
+      tools: [echo],
+      getSnapshot: () => ({ currentRoute: '/' }),
+      resolveTool: (q) => {
+        calls.push(q);
+        return { id: 'echo', args: { q } };
+      },
+    });
+    return { chat, calls };
+  };
+
+  it('keeps the subject through a digression', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('Tell me about Hobnob.');
+    await chat.ask('What is his email?');
+    await chat.ask('and its stack?');
+    expect(calls.at(-1)).toMatch(/Hobnob.*stack|stack.*Hobnob/i);
+  });
+
+  it('resolves a description pointer', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('What stack does Hobnob use?');
+    await chat.ask('and the one for testing generated interfaces?');
+    expect(calls.at(-1)).toContain('Groundglass');
+  });
+
+  it('resolves an ordinal from the last list', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('what has he built?');
+    await chat.ask('the third one?');
+    expect(calls.at(-1)).toContain('Groundglass');
+  });
+
+  it('resolves an exclusion from the last list', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('which projects use python?');
+    await chat.ask('not Readback, the other one');
+    expect(calls.at(-1)).toContain('Groundglass');
+    expect(calls.at(-1)).not.toContain('Readback');
+  });
+
+  it('turns a size follow-up into a size comparison', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('Compare Hobnob and Readback.');
+    await chat.ask('which one is bigger?');
+    expect(calls.at(-1)).toMatch(/compare .*Hobnob.*Readback.*size/i);
+  });
+
+  it('resolves a privacy follow-up against the current subject', async () => {
+    const { chat, calls } = makeContextChat();
+    await chat.ask('Tell me about Boaz.');
+    await chat.ask('what about its privacy?');
+    expect(calls.at(-1)).toMatch(/does Boaz send data/i);
+  });
+});

@@ -1,6 +1,7 @@
 import { AgentRuntime } from '../core/loop.js';
 import { CapabilityRegistry, type RegistryLookup } from '../core/registry.js';
 import { isCoverageQuery, createWorkingMemory, type MemoryTurn, type WorkingMemory } from '../core/memory.js';
+import { analyzeQuestion } from '../core/question.js';
 import type {
   AgentEngine,
   AgentEvent,
@@ -60,6 +61,12 @@ export interface ToolCall {
   args: Record<string, unknown>;
 }
 
+export interface ConversationDescription {
+  /** A phrase that points at a subject, such as /reading|books|kid/i. */
+  match: RegExp;
+  subject: string;
+}
+
 export interface ConversationOptions {
   /** The system prompt. Held for the runtime and shown in traces. */
   instructions?: string;
@@ -84,6 +91,12 @@ export interface ConversationOptions {
   /** Subject vocabulary for working memory and follow-ups. */
   subjects?: string[];
   attributes?: Record<string, string[]>;
+  /** Pointing phrases the host knows, e.g. "the reading one" -> Readback. */
+  descriptions?: ConversationDescription[];
+  /** A size for a subject, used to resolve "which one is bigger?". */
+  sizeOf?: (subject: string) => number | null;
+  /** The sentence a size comparison becomes. Defaults to "compare A and B by size". */
+  compareQuery?: (a: string, b: string) => string;
   /** Reuse a session across conversation objects. */
   memory?: WorkingMemory;
   /** Override the engine; otherwise a rules engine is built. */
@@ -191,6 +204,114 @@ export function createConversation(options: ConversationOptions = {}): Conversat
       subjects: options.subjects,
       attributes: options.attributes,
     });
+
+  const slugOf = (value: string) =>
+    String(value).split(':')[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const nameBySlug = new Map(memory.subjects.map((name) => [slugOf(name), name]));
+  const joinNames = (names: string[]) => {
+    const list = [...new Set(names.filter(Boolean))];
+    if (list.length <= 1) return list[0] ?? '';
+    return `${list.slice(0, -1).join(', ')} and ${list[list.length - 1]}`;
+  };
+  let setNote: { groups: Array<{ term: string; names: string[] }>; turn: number } | null = null;
+
+  function rememberSet(steps: TurnStep[], turn: number): void {
+    const inference = steps.find((step) => step.type === 'inference' && step.solutions?.length);
+    if (!inference || inference.type !== 'inference') return;
+    const groups = new Map<string, { term: string; names: string[] }>();
+    for (const solution of inference.solutions) {
+      const bindings = solution as Record<string, string>;
+      const term = bindings['?1_T'];
+      const slug = bindings['?P'];
+      if (!term || !slug) continue;
+      const name = nameBySlug.get(String(slug)) ?? String(slug);
+      const group = groups.get(String(term)) ?? { term: String(term), names: [] };
+      if (!group.names.includes(name)) group.names.push(name);
+      groups.set(String(term), group);
+    }
+    setNote = groups.size >= 2 ? { groups: [...groups.values()], turn } : null;
+  }
+
+  function setExclusion(query: string): { text: string; line: string } | null {
+    if (!setNote || setNote.turn !== memory.turns.length) return null;
+    if (!/^\s*why\s+(not|isn'?t|aren'?t|didn'?t|doesn'?t)\b/i.test(query)) return null;
+    const groups = setNote.groups;
+    const terms = groups.map((group) => group.term);
+    const shared = groups[0]?.names.filter((name) => groups.every((group) => group.names.includes(name))) ?? [];
+    const claim = shared.length
+      ? `${joinNames(shared)} ${shared.length === 1 ? 'is' : 'are'} the only ${shared.length === 1 ? 'one' : 'ones'} with both ${joinNames(terms)}.`
+      : `No project lists both ${joinNames(terms)}.`;
+    const sides = groups
+      .map((group) => {
+        const only = group.names.filter((name) => !shared.includes(name));
+        if (!only.length) return '';
+        const missing = terms.filter((term) => term !== group.term);
+        return `${joinNames(only)} ${only.length === 1 ? 'lists' : 'list'} ${group.term} and ${only.length === 1 ? 'not' : 'neither lists'} ${joinNames(missing)}`;
+      })
+      .filter(Boolean);
+    return {
+      text: `${claim}${sides.length ? ` ${sides.join('; ')}.` : ''}`,
+      line: 'Read the two conditions of the last answer',
+    };
+  }
+
+  function resolveContext(query: string): { query?: string; text?: string } | null {
+    const analysis = analyzeQuestion(query, {
+      subjects: memory.subjects,
+      ...(options.attributes ? { attributes: options.attributes } : {}),
+      context: memory.context(),
+    });
+    const items = memory.context().items ?? [];
+    const subject = memory.context().subject;
+    const attribute = analysis.slots.attribute;
+    const rewrite = (name: string) =>
+      attribute ? `what is ${name}'s ${attribute}?` : `tell me about ${name}`;
+
+    const described = options.descriptions?.find((entry) => entry.match.test(query))?.subject;
+    const pointsAtAThing = /\b(the one|the\s+.+?\s+one|that one|the .+ project)\b/i.test(query);
+    if (described && pointsAtAThing) return { query: rewrite(described) };
+
+    const ordinal = query.toLowerCase().match(/\b(first|second|third|fourth|fifth|last)\b/)?.[1];
+    const ORDINALS: Record<string, number> = { first: 0, second: 1, third: 2, fourth: 3, fifth: 4 };
+    if (ordinal && items.length > 1) {
+      const index = ordinal === 'last' ? items.length - 1 : ORDINALS[ordinal];
+      if (index !== undefined && items[index]) return { query: rewrite(items[index]) };
+    }
+
+    const excluded = [
+      ...(analysis.slots.exclude ?? []),
+      ...(memory.subjects.filter((name) => new RegExp(`\\bnot\\s+${name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(query))),
+    ];
+    if (excluded.length && items.length > 1) {
+      const remaining = items.filter((name) => !excluded.some((entry) => entry.toLowerCase() === name.toLowerCase()));
+      if (remaining.length === 1) return { query: rewrite(remaining[0]) };
+    }
+
+    if (subject && /\b(privacy|cloud|server|send|upload|leave)\b/i.test(query)) {
+      return { query: `does ${subject} send data to a server?` };
+    }
+
+    if (subject && (analysis.slots.reference || /\b(its|their|that one|the same)\b/i.test(query)) && attribute) {
+      return { query: `what is ${subject}'s ${attribute}?` };
+    }
+
+    const asksSize = /\bwhich (one|of them|project)?\s*(is )?(bigger|larger|smaller)\b/i.test(query);
+    if (asksSize && items.length === 2 && options.sizeOf) {
+      const [a, b] = items;
+      const left = options.sizeOf(a);
+      const right = options.sizeOf(b);
+      if (left !== null && right !== null) {
+        const bigger = /smaller/i.test(query) ? (left < right ? a : b) : (left > right ? a : b);
+        const smaller = bigger === a ? b : a;
+        return {
+          query: options.compareQuery
+            ? options.compareQuery(bigger, smaller)
+            : `compare ${bigger} and ${smaller} by size`,
+        };
+      }
+    }
+    return null;
+  }
 
   const ownRegistry = options.registry ? null : new CapabilityRegistry();
   const registry = options.registry ?? ownRegistry;
@@ -327,8 +448,24 @@ export function createConversation(options: ConversationOptions = {}): Conversat
         return finish(out);
       }
 
+      const exclusion = setExclusion(query);
+      if (exclusion) {
+        const record = memory.observe(query, { query, items: [] });
+        const out: ConversationTurn = {
+          text: exclusion.text,
+          steps: [],
+          surfaces: [],
+          turn: record,
+          kind: turn.kind,
+          followUp: null,
+        };
+        viaSink({ type: 'text.delta', text: exclusion.text });
+        return finish(out);
+      }
+
+      const contextual = resolveContext(query);
       const follow = memory.followUpTool(query);
-      const effective = follow?.query ?? query;
+      const effective = follow?.query ?? contextual?.query ?? query;
       const call = direct(effective, turn);
       let textOut = '';
       let steps: TurnStep[] = [];
@@ -365,7 +502,9 @@ export function createConversation(options: ConversationOptions = {}): Conversat
         query: effective,
         args: call?.args,
         entities: answerEntities,
+        items: answerEntities,
       });
+      rememberSet(steps, record.turn);
       const surfaces = steps
         .filter((step): step is Extract<TurnStep, { type: 'surface' }> => step.type === 'surface')
         .flatMap((step) => step.messages);

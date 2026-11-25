@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.9.5 - 2026-11-25
+
+- The conversation facade now resolves contextual references before routing:
+  descriptions such as "the one for testing generated interfaces", ordinals from
+  the last answer, exclusions such as "not Readback, the other one", pronouns
+  after a digression, privacy follow-ups, and "which one is bigger?" through a
+  host-provided size function. The host supplies vocabulary and a `sizeOf`
+  callback; Boaz owns the resolution and the query rewrite.
+- The facade remembers set answers (`?1_T` groups) and answers "why not both?"
+  from the same split the last answer produced, instead of falling through to the
+  contact rule.
+- The blog-stats payload now carries the newest excerpt, so "what is that one
+  about?" can answer with the post summary rather than repeating the title.
+- Six context tests added. 327 tests total.
+
 ## 0.9.4 - 2026-11-25
 
 - Tool-backed rules now resolve the words the visitor typed instead of their
