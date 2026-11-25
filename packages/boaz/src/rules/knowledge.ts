@@ -215,6 +215,20 @@ export class KnowledgeBase {
    * its other words (`physics`, `engines`) or by its whole spelling.
    */
   canonicalFor(token: string): string[] {
+    // Try the spelling the visitor typed first. A camel-case name is indexed
+    // under its joined spelling ("typescript"), while tokenize() splits it
+    // into "type" and "script"; using only the stemmed key made every
+    // camel-case constant unreachable by its own name.
+    const whole = normalizeSpelling(String(token ?? '')).toLowerCase().replace(/[^a-z0-9]+/g, '');
+    const direct = whole ? this.vocabulary.get(whole) ?? [] : [];
+    if (direct.length > 0) {
+      if (direct.length === 1) return direct;
+      const exact = direct.filter((constant) => {
+        const words = tokenize(constant);
+        return words.length === 1 && words[0] === whole;
+      });
+      return exact.length > 0 ? exact : direct;
+    }
     const [stemmed] = tokenize(token);
     const key = stemmed ?? token.toLowerCase();
     const all = this.vocabulary.get(key) ?? [];

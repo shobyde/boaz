@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.9.3 - 2026-11-25
+
+- A camel-case constant is reachable by the spelling the visitor typed.
+  `canonicalFor("TypeScript")` used to tokenize to `type` and `script` and return
+  nothing, so a stack rule dropped the term and answered "no project lists
+  TypeScript". The resolver now tries the joined spelling first, then applies the
+  existing exact-name preference so `C++` still wins over a title that contains
+  it. Two tests added; the continuation benchmark and conversation facade are
+  unchanged.
+
 ## 0.9.2 - 2026-11-25
 
 - `@shobyde/boaz/conversation` now exposes `createConversation({ system,
