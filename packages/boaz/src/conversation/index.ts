@@ -93,6 +93,8 @@ export interface ConversationOptions {
   attributes?: Record<string, string[]>;
   /** Pointing phrases the host knows, e.g. "the reading one" -> Readback. */
   descriptions?: ConversationDescription[];
+  /** Which subjects can be pointed at with an ordinal or exclusion. */
+  pointable?: (subject: string) => boolean;
   /** A size for a subject, used to resolve "which one is bigger?". */
   sizeOf?: (subject: string) => number | null;
   /** The sentence a size comparison becomes. Defaults to "compare A and B by size". */
@@ -167,6 +169,12 @@ function sentence(text: string): string {
 
 function entitiesIn(text: string, subjects: string[]): string[] {
   const body = sentence(text).toLowerCase();
+  return subjects.filter((subject) => body.includes(subject.toLowerCase()));
+}
+
+/** Every subject named anywhere in the answer, for list and comparison items. */
+function allEntitiesIn(text: string, subjects: string[]): string[] {
+  const body = String(text ?? '').toLowerCase();
   return subjects.filter((subject) => body.includes(subject.toLowerCase()));
 }
 
@@ -261,7 +269,9 @@ export function createConversation(options: ConversationOptions = {}): Conversat
       ...(options.attributes ? { attributes: options.attributes } : {}),
       context: memory.context(),
     });
-    const items = memory.context().items ?? [];
+    const items = (memory.context().items ?? []).filter(
+      (name) => !options.pointable || options.pointable(name),
+    );
     const subject = memory.context().subject;
     const attribute = analysis.slots.attribute;
     const rewrite = (name: string) =>
@@ -278,9 +288,12 @@ export function createConversation(options: ConversationOptions = {}): Conversat
       if (index !== undefined && items[index]) return { query: rewrite(items[index]) };
     }
 
+    const lowerQuery = query.toLowerCase();
     const excluded = [
-      ...(analysis.slots.exclude ?? []),
-      ...(memory.subjects.filter((name) => new RegExp(`\\bnot\\s+${name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`, 'i').test(query))),
+      ...new Set([
+        ...(analysis.slots.exclude ?? []),
+        ...memory.subjects.filter((name) => lowerQuery.includes(`not ${name.toLowerCase()}`)),
+      ]),
     ];
     if (excluded.length && items.length > 1) {
       const remaining = items.filter((name) => !excluded.some((entry) => entry.toLowerCase() === name.toLowerCase()));
@@ -497,12 +510,23 @@ export function createConversation(options: ConversationOptions = {}): Conversat
       }
 
       const answerEntities = entitiesIn(textOut, memory.subjects);
+      const questionEntities = analyzeQuestion(query, {
+        subjects: memory.subjects,
+        ...(options.attributes ? { attributes: options.attributes } : {}),
+        context: memory.context(),
+      }).slots.entities;
+      // A comparison names its own two items; a list answer supplies them from
+      // the first sentence. Using every subject in the whole answer turns
+      // "shobyde.com takes the other route" into a third project.
+      const itemEntities = questionEntities.length >= 2
+        ? questionEntities
+        : allEntitiesIn(sentence(textOut), memory.subjects);
       const record = memory.observe(query, {
         capabilityId: call?.id ?? stepCapability(steps),
         query: effective,
         args: call?.args,
         entities: answerEntities,
-        items: answerEntities,
+        items: itemEntities,
       });
       rememberSet(steps, record.turn);
       const surfaces = steps

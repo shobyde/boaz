@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.6 - 2026-11-25
+
+- Context resolution now keeps answer items separate from answer entities. A
+  list sentence supplies the items for ordinals and exclusions; a comparison
+  uses the two subjects the question named. Stack values mentioned later in the
+  same answer no longer become third candidates.
+- Added a `pointable` predicate so the host can say which subjects an ordinal
+  can point at. This keeps `shobyde.com takes the other route` out of the
+  exclusion list for a Python answer.
+- The privacy rewrite and the newest-post summary are exercised by the site
+  integration; the facade itself stays domain-neutral.
+
 ## 0.9.5 - 2026-11-25
 
 - The conversation facade now resolves contextual references before routing:

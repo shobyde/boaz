@@ -153,6 +153,7 @@ describe('conversation context resolution', () => {
         { match: /meeting|notes/i, subject: 'Hobnob' },
         { match: /generated|interface|conformance/i, subject: 'Groundglass' },
       ],
+      pointable: (name) => ['Hobnob', 'Readback', 'Groundglass', 'Boaz'].includes(name),
       sizeOf: (name) => ({ Hobnob: 8142, Readback: 7315, Groundglass: 1771, Boaz: 11374 })[name] ?? null,
       tools: [echo],
       getSnapshot: () => ({ currentRoute: '/' }),
