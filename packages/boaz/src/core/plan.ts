@@ -315,7 +315,7 @@ export function routeRequest(query: string, options: RouteOptions): RoutedReques
 /**
  * Plans a request, or declines to. Nothing here reads a model: the sentence is
  * cut at its own connectives, each clause is routed on its own words, and the
- * only cross-clause reasoning is a precondition check (a page action after a
+ * only cross-clause planning is a precondition check (a page action after a
  * route, or arguments a clause never stated).
  */
 export function planRequest(query: string, options: PlanOptions): RequestPlan {

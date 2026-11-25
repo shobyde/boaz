@@ -5,7 +5,7 @@
    document it came from), pick k of them: the ones most related to
    the question, and not saying the same thing as each other. That
    is Maximal Marginal Relevance over tf-idf cosine, which needs no
-   weights, no training data and no inference budget.
+   weights, no training data and no model inference budget.
 
    The two failures this exists to avoid:
    - a plain relevance ranking returns one document's family of

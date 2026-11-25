@@ -75,7 +75,7 @@ capabilities, then nothing.
 | "which projects use Python?" (a join over rows) | an **answer rule** |
 | "what does he do?" (a phrasing with no content words) | an **answer rule** with \`match\` |
 
-Rules live in your app, not the library. The library owns retrieval, inference
+Rules live in your app, not the library. The library owns retrieval, rule evaluation
 and the order of operations; you own the facts.
 
 \`\`\`ts

@@ -35,7 +35,7 @@ export interface TurnResult {
   calls: Array<{ id: string; args: Record<string, unknown> }>;
   /** The rule that planned the first call, when a rule planned it. */
   plannedBy?: string;
-  /** The answer rule that composed the prose, from its inference step. */
+  /** The answer rule that composed the prose, from its rule step. */
   composedBy?: string;
 }
 

@@ -39,7 +39,7 @@ export type {
   PreferenceRecordOptions,
   StatedPreference,
 } from './preferences.js';
-export { createWorkingMemory, isCoverageQuery } from './memory.js';
+export { createWorkingMemory, isCoverageQuery, resolveToolFollowUp } from './memory.js';
 export { parseAction, resolveAction, describeResolution, flattenTree, normaliseName } from './actions.js';
 export type {
   ActionNode,
@@ -57,6 +57,8 @@ export type {
   SalientTopic,
   Coverage,
   ObserveOptions,
+  ToolFollowUp,
+  ToolFollowUpOptions,
 } from './memory.js';
 export type {
   PlanExecution,

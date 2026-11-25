@@ -423,7 +423,7 @@ export class AgentRuntime {
 
   /**
    * Reveals the finished reply as deltas. The reply is already computed, so this
-   * is pacing, not inference: hosts that want instant text leave streaming off.
+   * is pacing, not computation: hosts that want instant text leave streaming off.
    */
   private async streamText(text: string): Promise<void> {
     const streaming = this.options.streaming;

@@ -62,7 +62,7 @@ export function Assistant(props: AssistantProps) {
 
   const submit = () => {
     const text = draft.trim();
-    if (!text || status === 'thinking') return;
+    if (!text || status === 'working') return;
     setDraft('');
     void send(text);
   };
@@ -122,7 +122,7 @@ export function Assistant(props: AssistantProps) {
             </div>
           );
         })}
-        {status === 'thinking' && !pendingConfirmation && (
+        {status === 'working' && !pendingConfirmation && (
           <div className="bubble from-assistant pending">
             <span className="dots">
               <i />
@@ -184,7 +184,7 @@ export function Assistant(props: AssistantProps) {
               }
             }}
           />
-          <button type="button" className="button" onClick={submit} disabled={status === 'thinking'}>
+          <button type="button" className="button" onClick={submit} disabled={status === 'working'}>
             Send
           </button>
         </div>

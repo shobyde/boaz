@@ -34,8 +34,13 @@ import { tokenize } from './retriever.js';
 export interface MemoryTurn {
   /** 1-based, so a trace line reads the way a person counts. */
   turn: number;
+  /** What the visitor said. */
   text: string;
+  /** What the host routed, after any continuation rewrite. Defaults to `text`. */
+  query?: string | null;
   capabilityId: string | null;
+  /** Arguments the capability ran with, when the host reports them. */
+  args?: Record<string, unknown> | null;
   /** Subject the turn was about, canonicalised against `subjects`. */
   subject: string | null;
   /** Every declared subject the turn named, in order of appearance. */
@@ -87,15 +92,60 @@ export interface WorkingMemoryOptions {
 
 export interface ObserveOptions {
   capabilityId?: string | null;
+  /** The effective question after a host rewrite. Defaults to the visitor's text. */
+  query?: string;
+  /** Arguments the capability ran with, so a later turn can replay the shape. */
+  args?: Record<string, unknown>;
   /** Entities the host knows about that the analyzer cannot see (a tool result). */
   entities?: string[];
   /** What the answer listed, in order. */
   items?: string[];
 }
 
+/**
+ * A host-side tool call that can be replayed with a new subject. The query is
+ * the previous effective question with the old subject replaced; a host can
+ * hand it to its own tool resolver and let matching regenerate the arguments.
+ */
+export interface ToolFollowUp {
+  /** The capability that answered the previous turn. */
+  capabilityId: string;
+  /** The previous effective question with its subject replaced. */
+  query: string;
+  /** The subject the previous turn was about. */
+  previousSubject: string;
+  /** The subject the visitor just named. */
+  subject: string;
+  /** The previous effective question, before replacement. */
+  previousQuery: string;
+  /** Arguments the previous call used, for a host that maps args directly. */
+  previousArgs: Record<string, unknown> | null;
+  /** The 1-based turn that produced the tool call. */
+  turn: number;
+}
+
+export interface ToolFollowUpOptions {
+  /** Values the app can name. Defaults to the memory's `subjects`. */
+  subjects?: string[];
+  /** Attribute words per app, handed to `analyzeQuestion`. */
+  attributes?: Record<string, string[]>;
+  /** How many recent turns to search for the tool. Default 1 (immediately prior). */
+  within?: number;
+}
+
 export interface WorkingMemory {
   readonly turns: MemoryTurn[];
+  /** The declared subjects this memory was built with. */
+  readonly subjects: string[];
   observe(text: string, options?: ObserveOptions): MemoryTurn;
+  /** The most recent turn that ran a capability, within `within` turns. */
+  lastTool(options?: { within?: number }): MemoryTurn | null;
+  /**
+   * Rewrite a follow-up such as "what about Hobnob?" into the previous
+   * question with the subject replaced. Returns null when there is no recent
+   * tool turn, no new subject, or the old subject is not in the question.
+   */
+  followUpTool(query: string, options?: ToolFollowUpOptions): ToolFollowUp | null;
   salient(): SalientEntity[];
   salientTopics(): SalientTopic[];
   context(): ReferenceContext;
@@ -235,7 +285,9 @@ export function createWorkingMemory(options: WorkingMemoryOptions = {}): Working
     const record: MemoryTurn = {
       turn,
       text,
+      query: observeOptions.query ?? text,
       capabilityId: observeOptions.capabilityId ?? null,
+      args: observeOptions.args ?? null,
       subject: analysis.slots.subject ?? entities[0] ?? null,
       entities,
       topics: topicWords(text, analysis.slots.attribute, entities),
@@ -273,11 +325,27 @@ export function createWorkingMemory(options: WorkingMemoryOptions = {}): Working
     return { entities, topics, sentence, empty: count === 0 && topics.length === 0, faded };
   }
 
+  function lastTool(lastToolOptions: { within?: number } = {}): MemoryTurn | null {
+    const within = Math.max(1, lastToolOptions.within ?? 1);
+    return turns.slice(-within).reverse().find((turn) => Boolean(turn.capabilityId)) ?? null;
+  }
+
   return {
     get turns() {
       return turns;
     },
+    get subjects() {
+      return subjects;
+    },
     observe,
+    lastTool,
+    followUpTool(query, options = {}) {
+      return resolveToolFollowUp(
+        { turns, subjects, context },
+        query,
+        options,
+      );
+    },
     salient: scored,
     salientTopics: scoredTopics,
     context,
@@ -287,5 +355,72 @@ export function createWorkingMemory(options: WorkingMemoryOptions = {}): Working
       mentions = [];
       topicMentions = [];
     },
+  };
+}
+
+const TOOL_FOLLOW_UP = /^(and|also|what about|how about|then|now|more)\b/i;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function subjectKey(value: string | null | undefined): string {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+/**
+ * "What about Hobnob?" after "how many commits does Boaz have?" is the same
+ * operation with a new subject. This primitive keeps that relation in working
+ * memory: the previous effective question, the capability that ran, and the
+ * subject it was about. It rewrites the question rather than guessing at the
+ * capability's arguments, so the app's normal matcher and schema still decide
+ * what a valid call looks like.
+ */
+export function resolveToolFollowUp(
+  memory: Pick<WorkingMemory, 'turns' | 'subjects' | 'context'>,
+  query: string,
+  options: ToolFollowUpOptions = {},
+): ToolFollowUp | null {
+  const text = String(query ?? '').trim();
+  if (!TOOL_FOLLOW_UP.test(text)) return null;
+  const within = Math.max(1, options.within ?? 1);
+  const previous = memory.turns
+    .slice(-within)
+    .reverse()
+    .find((turn) => turn.capabilityId && turn.subject);
+  if (!previous?.capabilityId || !previous.subject) return null;
+
+  const analysis = analyzeQuestion(text, {
+    subjects: options.subjects ?? memory.subjects,
+    ...(options.attributes ? { attributes: options.attributes } : {}),
+    context: memory.context(),
+  });
+  const candidates = [
+    ...(analysis.slots.entities ?? []),
+    analysis.slots.reference?.value,
+  ].filter((value): value is string => Boolean(value));
+  const newSubjects = [...new Set(candidates)].filter(
+    (value) => subjectKey(value) !== subjectKey(previous.subject),
+  );
+  if (newSubjects.length !== 1) return null;
+  const subject = newSubjects[0];
+
+  const previousQuery = previous.query ?? previous.text;
+  if (!previousQuery) return null;
+  const boundary = new RegExp(
+    `(^|[^A-Za-z0-9])(${escapeRegExp(previous.subject)})(?=$|[^A-Za-z0-9])`,
+    'i',
+  );
+  if (!boundary.test(previousQuery)) return null;
+  const rewritten = previousQuery.replace(boundary, (_match, prefix: string) => `${prefix}${subject}`);
+
+  return {
+    capabilityId: previous.capabilityId,
+    query: rewritten,
+    previousSubject: previous.subject,
+    subject,
+    previousQuery,
+    previousArgs: previous.args ?? null,
+    turn: previous.turn,
   };
 }

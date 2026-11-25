@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.9.2 - 2026-11-25
+
+- `@shobyde/boaz/conversation` now exposes `createConversation({ system,
+  knowledge, tools })`, an SDK-shaped facade over the runtime and working
+  memory. It builds the manifest and registry from tool declarations, classifies
+  turns, executes direct tools and follow-ups, records memory, and returns text,
+  trace steps, surfaces and the classification. `conversation.stream()` emits
+  typed events (`text.delta`, `tool.use`, `tool.result`, `surface`,
+  `turn.completed`) so the host is not limited to a final string. The app still
+  owns facts, handlers and rendering.
+- Terminology pass: docs now distinguish the trace and symbolic rule evaluation
+  from model reasoning. The React chat status is `working` instead of `thinking`;
+  the UI no longer claims a hidden chain of thought.
+- Working memory now records the capability, arguments and effective question of
+  a tool turn. `resolveToolFollowUp()` and `memory.followUpTool()` rewrite a
+  follow-up such as "what about Hobnob?" into the previous question with the
+  subject replaced, leaving capability choice and argument validation to the
+  normal matcher. The continuation only fires for a recent tool turn and exactly
+  one new declared subject. The site's continuation suite measures the gap:
+  stateless and pointer-only each pass 4/9 turns; the tool continuation passes
+  9/9, including the capability arguments.
+
 ## 0.9.1 - 2026-11-25
 
 - README only. The release runbook is gone from the package README: npm renders the repo README on

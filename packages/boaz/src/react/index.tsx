@@ -52,7 +52,7 @@ interface AgentContextValue {
   runtime: AgentRuntime;
   registry: RegistryLookup;
   messages: UIChatMessage[];
-  status: 'idle' | 'thinking' | 'error';
+  status: 'idle' | 'working' | 'error';
   error: string | null;
   pendingConfirmation: ConfirmationRequest | null;
   approve: () => void;
@@ -94,7 +94,7 @@ export function AgentProvider({
   children,
 }: AgentProviderProps) {
   const [messages, setMessages] = useState<UIChatMessage[]>([]);
-  const [status, setStatus] = useState<'idle' | 'thinking' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'working' | 'error'>('idle');
   const [error, setError] = useState<string | null>(null);
   const [pendingConfirmation, setPendingConfirmation] = useState<ConfirmationRequest | null>(null);
   const pendingRef = useRef<PendingConfirmation | null>(null);
@@ -154,7 +154,7 @@ export function AgentProvider({
       if (!trimmed || busy.current) return;
       busy.current = true;
       setError(null);
-      setStatus('thinking');
+      setStatus('working');
       const userMessage: UIChatMessage = { id: nextId.current++, role: 'user', content: trimmed };
       setMessages((previous) => [...previous, userMessage]);
       try {

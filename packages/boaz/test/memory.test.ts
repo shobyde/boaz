@@ -122,3 +122,75 @@ describe('working memory: coverage', () => {
     expect(coverage.sentence).toMatch(/, and 3 more\.$/);
   });
 });
+
+
+describe('working memory: tool continuation', () => {
+  const withTool = (question = 'how many commits does Boaz have?') => {
+    const mem = memory();
+    mem.observe(question, {
+      capabilityId: 'github.activity',
+      args: { repo: 'boaz' },
+      entities: ['Boaz'],
+    });
+    return mem;
+  };
+
+  it('replays the last tool question with a new subject', () => {
+    const mem = withTool();
+    const follow = mem.followUpTool('what about Hobnob?');
+    expect(follow).toMatchObject({
+      capabilityId: 'github.activity',
+      previousSubject: 'Boaz',
+      subject: 'Hobnob',
+      query: 'how many commits does Hobnob have?',
+      previousArgs: { repo: 'boaz' },
+    });
+  });
+
+  it('uses the effective query after an earlier continuation', () => {
+    const mem = withTool();
+    const first = mem.followUpTool('what about Hobnob?');
+    expect(first?.query).toBe('how many commits does Hobnob have?');
+    mem.observe('what about Hobnob?', {
+      capabilityId: first?.capabilityId,
+      query: first?.query,
+      args: { repo: 'hobnob' },
+      entities: ['Hobnob'],
+    });
+    expect(mem.followUpTool('and Readback?')?.query).toBe('how many commits does Readback have?');
+  });
+
+  it('does not fire without a recent tool turn', () => {
+    const mem = memory();
+    mem.observe('what stack does Hobnob use?');
+    expect(mem.followUpTool('what about Readback?')).toBeNull();
+  });
+
+  it('does not fire when the follow-up names no new subject', () => {
+    const mem = withTool();
+    expect(mem.followUpTool('what about its stack?')).toBeNull();
+    expect(mem.followUpTool('and Boaz?')).toBeNull();
+  });
+
+  it('does not fire when the old subject is not in the previous question', () => {
+    const mem = memory();
+    mem.observe('how many commits are there?', {
+      capabilityId: 'github.activity',
+      args: { repo: 'boaz' },
+      entities: ['Boaz'],
+    });
+    expect(mem.followUpTool('what about Hobnob?')).toBeNull();
+  });
+
+  it('only searches the immediately previous turn by default', () => {
+    const mem = withTool();
+    mem.observe('what is his email?');
+    expect(mem.followUpTool('what about Hobnob?')).toBeNull();
+    expect(mem.followUpTool('what about Hobnob?', { within: 2 })?.query).toBe('how many commits does Hobnob have?');
+  });
+
+  it('keeps the visitor wording around the replaced subject', () => {
+    const mem = withTool('chart commits by week for Boaz');
+    expect(mem.followUpTool('and Hobnob?')?.query).toBe('chart commits by week for Hobnob');
+  });
+});

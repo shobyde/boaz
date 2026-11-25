@@ -9,7 +9,7 @@
 Most "AI in your app" implementations stream the DOM to a server, pay per token, and hand a language model a bag of selectors. This package takes the opposite position:
 
 - **The app publishes a contract, not a DOM dump.** Co-located `defineCapability()` declarations are extracted at build time into a small JSON manifest. The assistant knows exactly which screens and operations exist because the build said so.
-- **The app declares facts, the library does the reasoning.** `KnowledgeBase` holds rows plus Datalog-style rules; `createRulesEngine()` joins them against the question, then composes a sentence from the result. No weights, no GPU, no network.
+- **The app declares facts, the library evaluates the rules.** `KnowledgeBase` holds rows plus Datalog-style rules; `createRulesEngine()` joins them against the question, then composes a sentence from the result. No weights, no GPU, no network.
 - **Every call is checked before it runs.** Ids must exist in the manifest, arguments must satisfy the JSON Schema, mutating actions pass a confirmation gate, and a turn is capped at three sequential calls.
 - **Replies can stream, with provenance.** `streaming: { chunkChars, paceMs }` emits `delta` events on the same channel as tool steps, and a rule answer carries the goal, the terms it matched and the rule it applied.
 
@@ -24,7 +24,7 @@ Every version is also attached to its GitHub release, which npm installs directl
 prebuilt `dist/`:
 
 ```bash
-npm install https://github.com/shobyde/boaz/releases/download/v0.9.0/boaz-0.9.0.tgz
+npm install https://github.com/shobyde/boaz/releases/download/v0.9.2/boaz-0.9.2.tgz
 ```
 
 ## The pieces
@@ -113,12 +113,13 @@ knowledge base (with the question's terms as assumptions), and calls `compose` w
 When no rule matches, or `compose` returns an empty string, it hands the turn to the keyword engine,
 which navigates and calls actions from the manifest.
 
-Answers come back with the reasoning attached:
+Answers come back with the trace attached:
 
 ```ts
 const { text, steps } = await runtime.send('which invoices are overdue?');
 // text: "3 invoices: INV-2039 (Meridian Health, $9,600), INV-2037 (Ardent Freight, $3,120), INV-2032 (Vesper Audio, $560)."
-// steps: [{ type: 'inference', goal: 'invoices_with(?I, ?C, ?S, ?A)', terms: ['overdue'],
+// steps: [{ type: 'inference', // a rule step
+//           goal: 'invoices_with(?I, ?C, ?S, ?A)', terms: ['overdue'],
 //           solutions: [...], rule: 'invoices_with(?I, ?C, ?S, ?A) :- invoice(?I, ?C, ?S, ?A), asked(?S)' }]
 ```
 
@@ -161,18 +162,18 @@ Handlers register on mount, so an action declared for another screen is not call
 ## Streaming
 
 `streaming` reveals the reply as `delta` events instead of one block. The text is already known when
-the first delta fires, so this is pacing, not inference: a host that wants instant text leaves it off,
+the first delta fires, so this is pacing, not computation: a host that wants instant text leaves it off,
 and a host that shows a transcript gets the same event shape it uses for tool steps.
 
 ```
-step    inference   overdue(?I, ?C, ?A)   terms: [overdue]   0ms
+step    rule        overdue(?I, ?C, ?A)   terms: [overdue]   0ms
 delta   "3 overdue: "
 delta   "INV-2039 (Meridian Health), "
 ...
 turn    text = "3 overdue: INV-2039 (...)."
 ```
 
-For a deterministic engine the honest thing to stream is the reasoning, not a fake progress bar:
+For a deterministic engine the honest thing to stream is the trace, not a fake progress bar:
 the trace is real and it arrives in about a millisecond.
 
 ## Grounding (only when you bring your own engine)
@@ -211,6 +212,153 @@ A2UI 1.0 streams (`createSurface` / `updateComponents` / `updateDataModel`) are 
 host can use its own. shobyde.com renders A2UI components with native elements, so the agent names
 components and the page keeps its design system, and `groundglass` checks every surface the assistant
 can emit in CI.
+
+## The conversation facade
+
+`createConversation` is the SDK-shaped entry point. Give it a system prompt, the
+domain knowledge, and tools. It owns the runtime, working memory, turn
+classification and tool continuation; the app owns the facts, the handlers and
+the rendering.
+
+```js
+import { createConversation } from '@shobyde/boaz/conversation';
+import { defineCapability } from '@shobyde/boaz/core';
+
+const chat = createConversation({
+  system: 'Answer from the project record. Never invent a repository.',
+  knowledge: { facts, rules, answers },
+  subjects: ['Boaz', 'Hobnob', 'Readback'],
+  tools: [
+    defineCapability({
+      id: 'github.activity',
+      kind: 'query',
+      title: 'Read GitHub activity',
+      description: 'Reads commit and release counts for a repository.',
+      paramsSchema: {
+        type: 'object',
+        properties: { repo: { type: 'string', enum: ['boaz', 'hobnob', 'readback'] } },
+        required: ['repo'],
+        additionalProperties: false,
+      },
+      handler: async ({ repo }) => ({ answer: `${repo}: 81 commits.` }),
+      // Optional: the host knows the repository names. The facade still runs
+      // the capability through the same schema and handler path.
+      resolve: (question) => (/hobnob/i.test(question) ? { repo: 'hobnob' } : null),
+    }),
+  ],
+  getSnapshot: () => ({ currentRoute: location.pathname }),
+});
+
+const turn = await chat.ask('how many commits does Hobnob have?');
+const next = await chat.ask('what about Readback?');
+
+next.text;        // the answer
+next.steps;       // the same trace steps the runtime emits
+next.surfaces;    // any surface steps the tools returned
+next.kind;        // fresh, continue-new-subject, command, recap...
+chat.memory;      // the working set and the last-tool record
+chat.reset();     // clear runtime and memory together
+```
+
+`system` is instructions for the host or a model prompt; it is not a fact.
+`knowledge` is the fact/rule base. `tools` are the capabilities, schemas and
+handlers. The facade never touches the DOM and never makes a network call on
+its own.
+
+### Streaming, not just a final string
+
+`ask()` is the convenience that collects the turn. `stream()` (also `query()`)
+exposes the same turn as typed events, which is the shape a UI or another agent consumes:
+
+```js
+for await (const event of chat.stream('how many commits does Hobnob have?')) {
+  switch (event.type) {
+    case 'turn.started':
+      // event.kind, event.classification
+      break;
+    case 'text.delta':
+      process.stdout.write(event.text);
+      break;
+    case 'tool.use':
+      // event.id, event.args
+      break;
+    case 'tool.result':
+      // event.ok, event.text, event.result, event.steps
+      break;
+    case 'surface':
+      // event.messages, a declarative surface to render
+      break;
+    case 'turn.completed':
+      // event.turn.text, steps, surfaces, memory record
+      break;
+  }
+}
+```
+
+The event union is:
+
+```ts
+turn.started | retrieval | text.delta | step | tool.use |
+tool.result | surface | turn.completed | error
+```
+
+There is no token stream because there is no model. A text delta is the finished
+sentence delivered in display chunks; `streaming: false` makes it one chunk.
+Tool calls, results, trace steps and surfaces stay separate objects instead of
+being flattened into the sentence.
+
+`onEvent` receives the same events when a consumer prefers a callback over an
+async iterator. `ask()` simply drains `stream()` and returns `turn.completed`.
+
+Tools may carry a `resolve(query, context)` hook for domain dispatch that
+retrieval cannot infer, such as a repository name or a chart subject. The hook
+returns arguments only. Validation, execution and follow-up memory stay in the
+facade.
+
+A tool can also omit `resolve` and let the normal matcher choose it. The two
+paths share the same capability id, schema and handler.
+
+## Follow-ups that keep the last tool
+
+A conversation can repeat an operation on a new subject:
+
+```text
+how many commits does Boaz have?
+what about Hobnob?
+```
+
+`createWorkingMemory` records the capability, its arguments and the effective
+question for a turn. `memory.followUpTool()` turns the second sentence into the
+first with the subject replaced, so the app's normal matcher and schema still
+choose the capability and validate the arguments:
+
+```js
+import { createWorkingMemory } from '@shobyde/boaz/core';
+
+const memory = createWorkingMemory({ subjects: ['Boaz', 'Hobnob'] });
+
+memory.observe('how many commits does Boaz have?', {
+  capabilityId: 'github.activity',
+  args: { repo: 'boaz' },
+  entities: ['Boaz'],
+});
+
+const next = memory.followUpTool('what about Hobnob?');
+// {
+//   capabilityId: 'github.activity',
+//   query: 'how many commits does Hobnob have?',
+//   previousSubject: 'Boaz',
+//   subject: 'Hobnob',
+//   previousQuery: 'how many commits does Boaz have?',
+//   previousArgs: { repo: 'boaz' }
+// }
+```
+
+The primitive only rewrites. The host passes `next.query` back through its own
+resolver; the old args are kept for a host that maps arguments directly rather
+than re-matching. It does not fire when there is no recent tool turn, when the
+follow-up names no new subject, or when the old subject is not in the previous
+question.
 
 ## No React? The core is framework-free
 
@@ -331,11 +479,11 @@ Letting a program act in a live app is the risky part, so the boundaries are str
 2. **Schema validation with one retry.** Arguments are validated against `paramsSchema`. A failure is replayed verbatim (`arguments.status must be one of "paid", "open", "overdue" (enum)`) with one chance to correct.
 3. **Confirmation gate.** `requiresConfirmation: true` pauses the turn, emits the request to the UI, and only calls the handler on an explicit approve. Cancel ends the turn with "Cancelled. Nothing was changed."
 4. **Step cap.** At most 3 sequential tool calls per message (`maxToolCalls`), so a confused engine cannot loop.
-5. **Bounded inference.** Rules are evaluated to a depth limit with deduped solutions, and a rule can only derive facts from rows the app declared.
+5. **Bounded rule evaluation.** Rules are evaluated to a depth limit with deduped solutions, and a rule can only derive facts from rows the app declared.
 
 ## Engines
 
-- **`createRulesEngine()`** — BM25 over your answer rules, Datalog over your facts, `compose` for the sentence. Handles `asked()` assumptions, returns an `inference` step, and falls through to keyword matching when nothing matches.
+- **`createRulesEngine()`** — BM25 over your answer rules, Datalog over your facts, `compose` for the sentence. Handles `asked()` assumptions, returns a rule step (type `inference`), and falls through to keyword matching when nothing matches.
 - **`createLexicalEngine()`** — deterministic BM25 over the manifest. It navigates, calls actions when every required argument is unambiguous from the visitor's words (enum value present, email present), and asks otherwise.
 - **`AgentEngine`** — a six-line interface (`id` + `complete(messages, tools)`). Wrap your own endpoint, a hosted model, or a test double; nothing in the loop assumes where the text came from.
 
@@ -370,7 +518,7 @@ Verified on this machine:
 
 Not verified here:
 
-- Rule quality beyond the demo: the tests cover the engine, not whether your rules are the right ones. `inference` steps are the tool for that review.
+- Rule quality beyond the demo: the tests cover the engine, not whether your rules are the right ones. Rule (type `inference`) steps are the tool for that review.
 - Token counts are `chars / 4` estimates; the budget is approximate by design.
 - `CAP008` route detection is a heuristic over React Router JSX and `path:` literals. File-based routers (Next `app/`, Remix) are not scanned yet.
 

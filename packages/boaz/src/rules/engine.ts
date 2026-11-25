@@ -12,8 +12,8 @@ import {
 import { KnowledgeBase, type Bindings, type FactRow, type Solution } from './knowledge.js';
 
 /**
- * An answer rule is the app's half of the reasoning: what to look up, and how a
- * solution becomes a sentence. The library owns retrieval, inference, grounding
+ * An answer rule is the app's half of the deduction: what to look up, and how a
+ * solution becomes a sentence. The library owns retrieval, rule evaluation, grounding
  * and the order of operations.
  */
 export interface AnswerRule {
@@ -30,7 +30,7 @@ export interface AnswerRule {
   compose: (context: AnswerContext) => string;
   /**
    * One plain-language line describing what this rule did. It travels on the
-   * inference step, so a host never prints a Datalog goal at a visitor.
+   * rule step, so a host never prints a Datalog goal at a visitor.
    */
   explain?: (context: AnswerContext) => string;
   /**
