@@ -1,6 +1,6 @@
 {
   "name": "@shobyde/boaz",
-  "version": "0.8.5",
+  "version": "0.9.0",
   "description": "Declarative capabilities, a knowledge base with rules, and a deterministic answer engine for in-browser assistants: no model download, no API key, every reply traceable to a fact.",
   "type": "module",
   "license": "MIT",
@@ -28,38 +28,42 @@
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js"
     },
+    "./build": {
+      "types": "./dist/build/index.d.ts",
+      "import": "./dist/build/index.js"
+    },
     "./core": {
       "types": "./dist/core/index.d.ts",
       "import": "./dist/core/index.js"
+    },
+    "./dom": {
+      "types": "./dist/dom/index.d.ts",
+      "import": "./dist/dom/index.js"
+    },
+    "./extract": {
+      "types": "./dist/extract/index.d.ts",
+      "import": "./dist/extract/index.js"
+    },
+    "./match": {
+      "types": "./dist/match/index.d.ts",
+      "import": "./dist/match/index.js"
+    },
+    "./package.json": "./package.json",
+    "./probes": {
+      "types": "./dist/build/probes.d.ts",
+      "import": "./dist/build/probes.js"
     },
     "./react": {
       "types": "./dist/react/index.d.ts",
       "import": "./dist/react/index.js"
     },
-    "./vite": {
-      "types": "./dist/vite/index.d.ts",
-      "import": "./dist/vite/index.js"
-    },
-    "./build": {
-      "types": "./dist/build/index.d.ts",
-      "import": "./dist/build/index.js"
-    },
-    "./probes": {
-      "types": "./dist/build/probes.d.ts",
-      "import": "./dist/build/probes.js"
-    },
-    "./package.json": "./package.json",
-    "./dom": {
-      "types": "./dist/dom/index.d.ts",
-      "import": "./dist/dom/index.js"
-    },
     "./rules": {
       "types": "./dist/rules/index.d.ts",
       "import": "./dist/rules/index.js"
     },
-    "./extract": {
-      "types": "./dist/extract/index.d.ts",
-      "import": "./dist/extract/index.js"
+    "./vite": {
+      "types": "./dist/vite/index.d.ts",
+      "import": "./dist/vite/index.js"
     }
   },
   "bin": {

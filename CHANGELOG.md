@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.9.0 - 2026-11-24
+
+- New module `boaz/match`, two functions and no model: `createEntityResolver({ names })` rewrites a
+  near-miss name before routing (one edit with a matching phonetic key, or three shared letters within
+  two edits, every span in a sentence), and `createEvidenceIndex(documents).find(question, { subject })`
+  returns the clause that carries the question. Evidence is weighted by inverse document frequency, so a
+  rare word outranks a common one; the question's head noun must appear, so sharing a verb is not
+  evidence; the subject's own name is not scored, because it is the filter; and a clause that asserts
+  absence ("no model", "never uploads") comes back flagged as a denial, which is an answer.
+- New module `boaz/match/aliases`: `mechanicalAliases(name)` writes the spellings a visitor types
+  (camel split, hyphen, underscore, plural, acronym, dotted product name) and `deriveAliases(sources)`
+  mines learned aliases with a discrimination score, an exclusion list for schema vocabulary, and a
+  minimum-document gate so a thin corpus emits none.
+- Measured on the 520-fact handbook with a strict lookup as the control: 13/18 answered before, 18/18
+  after, five repaired and none broken. All five were spellings of a name (`becon`, `platfrom`,
+  `INC 4101`), which is the class this module exists for.
+- Measured on the site's six cards: exact names 3/10, fuzzy resolver 5/10, plus mechanical aliases 5/10,
+  plus learned aliases 5/10; controls hit 0. Aliases add nothing over the fuzzy pass on a thin corpus,
+  which is why the learned tier is gated by density rather than shipped on by default.
+- Tests: 22 new (14 resolver/evidence, 8 aliases), 319 total.
+
 ## 0.8.5 - 2026-11-25
 
 - A name that is the word beats a name that contains it. With 0.8.4's `cpp` spelling, a stack value
