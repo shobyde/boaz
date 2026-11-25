@@ -1,4 +1,4 @@
-import { tokenize } from './retriever.js';
+import { normalizeSpelling, tokenize } from './retriever.js';
 import { canonicalTerm, DOMAIN_SYNONYMS, LEMMAS } from './lemmas.js';
 
 /**
@@ -288,7 +288,9 @@ function subjectTokens(value: string): string[] {
   // projects use python and have a web interface" treated a property phrase as
   // a technology. The whole spelling is the name; the fragments are not.
   const out: string[] = [];
-  for (const word of value.split(/[^A-Za-z0-9]+/).filter(Boolean)) {
+  // A name spelled with punctuation ("C++") has to be normalised before the
+  // split, or the name is one letter and the two-character floor drops it.
+  for (const word of normalizeSpelling(value).split(/[^A-Za-z0-9]+/).filter(Boolean)) {
     out.push(...tokenize(/[A-Z]/.test(word.slice(1)) ? word.toLowerCase() : word));
   }
   return out.filter((token) => !allDigits(token));
@@ -394,14 +396,14 @@ function subjectAt(subject: string, haystack: string[]): number {
   const words = haystack.map(canonicalTerm);
   const at = matchIndex(tokens, words);
   if (at >= 0) return at;
-  const joined = tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, '')).map(canonicalTerm);
+  const joined = tokenize(normalizeSpelling(subject).toLowerCase().replace(/[^a-z0-9]+/g, '')).map(canonicalTerm);
   if (joined.length === 0 || joined.join(' ') === tokens.join(' ')) return -1;
   return matchIndex(joined, words);
 }
 
 /** Word index range of a subject name inside the query's plain words. */
 function subjectSpan(subject: string, words: string[]): { start: number; end: number } | null {
-  const forms = [subjectTokens(subject), tokenize(subject.toLowerCase().replace(/[^a-z0-9]+/g, ''))]
+  const forms = [subjectTokens(subject), tokenize(normalizeSpelling(subject).toLowerCase().replace(/[^a-z0-9]+/g, ''))]
     .filter((form) => form.length > 0)
     .filter((form, i, all) => all.findIndex((other) => other.join(' ') === form.join(' ')) === i);
   for (const needle of forms) {

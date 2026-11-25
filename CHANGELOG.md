@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.8.4 - 2026-11-25
+
+- A technology whose name is punctuation can be named. `tokenize('C++')` and `tokenize('C#')` both
+  returned `[]`: the split left `c` and the two-character floor dropped it, so no question could reach
+  the stack entry that spells the technology. `normalizeSpelling()` maps `C++` to `cpp` and `C#` to
+  `csharp` before the split, and every path that compares visitor words with a declared constant calls
+  it first (`tokenize`, `subjectTokens`, the constant index and its joined form), so the query and the
+  constant agree without either side being spelled out in a second table. Version numbers keep their
+  behaviour: `tokenize('Python 3.10+')` is still `python` + `10`.
+- The bare letter stays distinct: `canonicalFor('c')` is `[]` while `canonicalFor('c++')` is `C++`, so
+  the normalisation is a spelling and not a fragment.
+- Suite: 280 tests (2 new). On the site, discourse 18/19 -> 19/19 (the `which projects use c++` task
+  was the one remaining miss); routing 52/52, compound, answers, threads and the handbook arena held.
+
 ## 0.8.3 - 2026-11-25
 
 - A camel-case fragment is no longer a name. `tokenize("WebGL")` is `web` + `gl`, and the constant

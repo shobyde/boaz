@@ -90,6 +90,20 @@ describe('KnowledgeBase', () => {
     expect(a2ui.canonicalFor('a2ui')).toEqual(['A2UI v1.0']);
     expect(a2ui.canonicalFor('ui')).toEqual([]);
   });
+
+  it('reaches a constant whose name is punctuation', () => {
+    // tokenize split "C++" into "c" and dropped it under the two-character
+    // floor, so the technology could not be named by any question at all.
+    const punct = new KnowledgeBase({
+      facts: [fact('uses', 'digipen', 'C++'), fact('uses', 'conversica', 'C#')],
+    });
+    expect(punct.canonicalFor('c++')).toEqual(['C++']);
+    expect(punct.canonicalFor('C++')).toEqual(['C++']);
+    expect(punct.canonicalFor('c#')).toEqual(['C#']);
+    // The normalisation is a spelling, not a fragment: the letters alone are
+    // still not the name.
+    expect(punct.canonicalFor('c')).toEqual([]);
+  });
 });
 
 const routeCapability: ManifestCapability = {

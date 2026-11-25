@@ -57,6 +57,17 @@ describe('tokenize', () => {
     expect(tokenize('billing.filter_invoices')).toEqual(['billing', 'filter', 'invoic']);
     expect(tokenize('the invoices for me')).toEqual(['invoic']);
   });
+
+  it('carries a technology whose name is punctuation', () => {
+    // Both halves were one letter after the split, which the two-character
+    // floor dropped: tokenize('C++') was [], so no question could name it.
+    expect(tokenize('C++')).toEqual(['cpp']);
+    expect(tokenize('c++')).toEqual(['cpp']);
+    expect(tokenize('C#')).toEqual(['csharp']);
+    expect(tokenize('which projects use C++')).toEqual(['project', 'use', 'cpp']);
+    // Normalising must not swallow a version number that ends in "+".
+    expect(tokenize('Python 3.10+')).toEqual(['python', '10']);
+  });
 });
 
 describe('CapabilityIndex', () => {

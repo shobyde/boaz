@@ -10,7 +10,7 @@
  *     kb.query('projects_using(?P)', { assume: [['asked', 'Python 3.10+']] });
  */
 
-import { tokenize } from '../core/retriever.js';
+import { normalizeSpelling, tokenize } from '../core/retriever.js';
 
 export type Term = string;
 export type FactRow = [string, ...string[]];
@@ -185,7 +185,7 @@ export class KnowledgeBase {
     const add = (text: string): void => {
       for (const token of tokenize(text)) words.add(token);
     };
-    for (const word of constant.split(/[^A-Za-z0-9]+/).filter(Boolean)) {
+    for (const word of normalizeSpelling(constant).split(/[^A-Za-z0-9]+/).filter(Boolean)) {
       // A camel-case word is several tokens to the tokenizer ("WebGL" -> web,
       // gl, "A2UI" -> ui) and one word to the visitor, who types "webgl" or
       // "a2ui". Index the whole spelling only: a fragment names something else,
@@ -195,7 +195,7 @@ export class KnowledgeBase {
     }
     // The constant's own joined spelling ("Three.js (WebGL)" -> threejswebgl)
     // stays reachable for a visitor who pastes it whole.
-    add(constant.toLowerCase().replace(/[^a-z0-9]+/g, ''));
+    add(normalizeSpelling(constant).toLowerCase().replace(/[^a-z0-9]+/g, ''));
     for (const word of words) {
       const list = this.vocabulary.get(word) ?? [];
       if (!list.includes(constant)) list.push(constant);

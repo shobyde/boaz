@@ -17,11 +17,23 @@ const STOPWORDS = new Set([
 ]);
 
 /**
+ * Spells a name the way a tokenizer can carry it. `split(/[^a-z0-9]+/)` turns
+ * "C++" into "c" and "C#" into "c", both under the two-character floor, so
+ * `tokenize('C++')` returned `[]` and no query could name the technology at
+ * all. The replacement is a token, not a synonym table: every path that
+ * compares visitor words with declared constants calls this first, so the
+ * query and the constant agree without either side being spelled out twice.
+ */
+export function normalizeSpelling(text: string): string {
+  return text.replace(/\bc\+\+/gi, 'cpp').replace(/\bc#/gi, 'csharp');
+}
+
+/**
  * Splits a query into searchable terms. Handles camelCase, dotted ids and the
  * plural forms that show up in UI copy ("invoices" should match "invoice").
  */
 export function tokenize(input: string): string[] {
-  return input
+  return normalizeSpelling(input)
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .toLowerCase()
     .split(/[^a-z0-9]+/)
