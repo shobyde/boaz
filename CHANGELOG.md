@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.8.3 - 2026-11-25
+
+- A camel-case fragment is no longer a name. `tokenize("WebGL")` is `web` + `gl`, and the constant
+  index used to key every fragment, so "which projects use python and have a web interface" bound
+  Three.js (WebGL) to the word "web" and answered with a project that lists no Python. The index now
+  keeps each word's whole spelling (`webgl`, `typescript`, `a2ui`) and drops the fragments, and
+  `subjectTokens` joins a camel-case word the same way, so slot, span and exclusion scope agree.
+- The other half of the same bug: the whole spelling of a camel-case constant was unreachable, so
+  "which projects use webgl" answered "No project on this page lists webgl" while "web" answered
+  with it. `canonicalFor('webgl')` now resolves, and so does `a2ui`, which was the rung-6 ceiling
+  (a two-word declared constant unreachable by its first word).
+- Measured on the site's suites: compound answered set 21/23 -> 23/23, discourse 15/19 -> 16/19 (the
+  `a2ui` task), compound slots 25/25, routing 52/52, composition fidelity 100% / similarity 0.50.
+  Threads stayed 32/32 after the site learned the third case: a two-condition ask where one condition
+  is not a page value now answers the half it has, and "why not both?" says which condition the
+  stacks do not list instead of routing those words into an unrelated paragraph.
+
 ## 0.8.2 - 2026-11-24
 
 - Releasing is one tag. `.github/workflows/release.yml` installs, builds, tests, checks that the tag

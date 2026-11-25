@@ -181,12 +181,21 @@ export class KnowledgeBase {
   private indexConstant(constant: string): void {
     // The same tokenizer the retriever uses, or "sqlite" (stemmed to "sqlit")
     // would never match the constant it came from.
-    const words = new Set(tokenize(constant));
-    // A camel-case name is split by the tokenizer ("TypeScript" -> type, script)
-    // but a visitor types it as one word, so the joined form is indexed too.
-    // Without it "which projects use typescript" finds no constant at all.
-    const joined = constant.toLowerCase().replace(/[^a-z0-9]+/g, '');
-    if (joined) words.add(joined);
+    const words = new Set<string>();
+    const add = (text: string): void => {
+      for (const token of tokenize(text)) words.add(token);
+    };
+    for (const word of constant.split(/[^A-Za-z0-9]+/).filter(Boolean)) {
+      // A camel-case word is several tokens to the tokenizer ("WebGL" -> web,
+      // gl, "A2UI" -> ui) and one word to the visitor, who types "webgl" or
+      // "a2ui". Index the whole spelling only: a fragment names something else,
+      // and "web" binding Three.js (WebGL) is how "python and have a web
+      // interface" answered with a project that lists no Python.
+      add(/[A-Z]/.test(word.slice(1)) ? word.toLowerCase() : word);
+    }
+    // The constant's own joined spelling ("Three.js (WebGL)" -> threejswebgl)
+    // stays reachable for a visitor who pastes it whole.
+    add(constant.toLowerCase().replace(/[^a-z0-9]+/g, ''));
     for (const word of words) {
       const list = this.vocabulary.get(word) ?? [];
       if (!list.includes(constant)) list.push(constant);

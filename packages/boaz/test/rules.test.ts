@@ -76,7 +76,19 @@ describe('KnowledgeBase', () => {
     // be indexed or the constant is unreachable from a lowercase query.
     const camel = new KnowledgeBase({ facts: [fact('uses', '@shobyde/boaz', 'TypeScript')] });
     expect(camel.canonicalFor('typescript')).toEqual(['TypeScript']);
-    expect(camel.canonicalFor('type')).toEqual(['TypeScript']);
+  });
+
+  it('a camel-case fragment is not the name it came from', () => {
+    // "web" is half of WebGL, and a fragment is a different word: binding it to
+    // Three.js (WebGL) made a property phrase ("a web interface") read as a
+    // technology. The whole spelling still resolves.
+    const webgl = new KnowledgeBase({ facts: [fact('uses', 'shobyde.com', 'Three.js (WebGL)')] });
+    expect(webgl.canonicalFor('webgl')).toEqual(['Three.js (WebGL)']);
+    expect(webgl.canonicalFor('web')).toEqual([]);
+    expect(webgl.canonicalFor('gl')).toEqual([]);
+    const a2ui = new KnowledgeBase({ facts: [fact('uses', 'groundglass', 'A2UI v1.0')] });
+    expect(a2ui.canonicalFor('a2ui')).toEqual(['A2UI v1.0']);
+    expect(a2ui.canonicalFor('ui')).toEqual([]);
   });
 });
 

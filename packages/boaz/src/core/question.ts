@@ -282,7 +282,16 @@ function allDigits(token: string): boolean {
 
 /** Subject tokens with digits dropped, so "Python 3.10+" matches "python". */
 function subjectTokens(value: string): string[] {
-  return tokenize(value).filter((token) => !allDigits(token));
+  // A camel-case word is several tokens to the tokenizer ("WebGL" -> web, gl)
+  // and one word to the visitor, who types "webgl". Splitting it makes a
+  // fragment match a name: "web" resolved to Three.js (WebGL), so "which
+  // projects use python and have a web interface" treated a property phrase as
+  // a technology. The whole spelling is the name; the fragments are not.
+  const out: string[] = [];
+  for (const word of value.split(/[^A-Za-z0-9]+/).filter(Boolean)) {
+    out.push(...tokenize(/[A-Z]/.test(word.slice(1)) ? word.toLowerCase() : word));
+  }
+  return out.filter((token) => !allDigits(token));
 }
 
 function matchIndex(needle: string[], haystack: string[]): number {
